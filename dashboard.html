@@ -2163,23 +2163,24 @@
                 searchOngkos.addEventListener('input', applyOngkosFilter);
             }
            
-            window.addEventListener('online', async () => {
-                showAlert('Connection restored. Syncing data...', 'success');
-                console.log('🌐 Back online - syncing data...');
-                
-                if (typeof saveToCloud === 'function') {
-                    await saveToCloud();
-                }
-                
-                if (typeof loadFromCloud === 'function') {
-                    await loadFromCloud();
-                }
-                
-                renderPabrikList();
-                loadPabrikCheckboxesOngkos();
-                loadOngkosFilterOptions();
-                renderOngkosList();
-            });
+			window.addEventListener('online', async () => {
+			    showAlert('Connection restored. Syncing data...', 'success');
+			    console.log('🌐 Back online - syncing data...');
+			    
+			    if (isGitHubConfigured()) {
+			        // AUTO-LOAD data terbaru sebelum sync (dari sync.js)
+			        console.log('📥 Auto-loading latest data...');
+			        await autoLoadLatestData();
+			        
+			        // Baru sync data lokal
+			        await saveToCloud();
+			    }
+			    
+			    renderPabrikList();
+			    loadPabrikCheckboxesOngkos();
+			    loadOngkosFilterOptions();
+			    renderOngkosList();
+			});
             
             window.addEventListener('offline', () => {
                 showAlert('Working offline. Changes will sync when online.', 'info');
