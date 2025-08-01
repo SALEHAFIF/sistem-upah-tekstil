@@ -11,10 +11,16 @@
       "nama": "pabrik 12",
       "alamat": "jalan 12",
       "created_at": "2025-08-01T17:05:40.896Z"
+    },
+    {
+      "id": 3,
+      "nama": "Pabrik 13",
+      "alamat": "Jalan 13",
+      "created_at": "2025-08-01T17:14:21.583Z"
     }
   ],
   "ongkos": [],
   "karyawan": [],
-  "lastUpdated": "2025-08-01T17:11:46.227Z",
+  "lastUpdated": "2025-08-01T17:14:23.587Z",
   "version": "1.0"
 }
