@@ -20,13 +20,13 @@
     },
     {
       "id": 4,
-      "nama": "pabrik 14",
-      "alamat": "jalan 14",
-      "created_at": "2025-08-01T17:15:12.062Z"
+      "nama": "Pabrik 15",
+      "alamat": "Jalan 15",
+      "created_at": "2025-08-01T17:15:26.019Z"
     }
   ],
   "ongkos": [],
   "karyawan": [],
-  "lastUpdated": "2025-08-01T17:15:14.072Z",
+  "lastUpdated": "2025-08-01T17:15:28.022Z",
   "version": "1.0"
 }
