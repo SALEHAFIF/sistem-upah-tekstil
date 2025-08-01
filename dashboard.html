@@ -1,0 +1,2180 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistem Upah Tekstil - Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            min-height: 100vh;
+            box-shadow: 0 0 20px rgba(0,0,0,0.1);
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            font-size: 28px;
+            margin-bottom: 8px;
+        }
+        
+        .header p {
+            opacity: 0.9;
+            font-size: 16px;
+        }
+        
+        .sync-status {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 14px;
+        }
+        
+        .sync-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #27ae60;
+        }
+        
+        .sync-indicator.syncing {
+            background: #f39c12;
+            animation: pulse 1s infinite;
+        }
+        
+        .sync-indicator.error {
+            background: #e74c3c;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        .nav-tabs {
+            display: flex;
+            background: #f8f9fa;
+            border-bottom: 3px solid #dee2e6;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        
+        .nav-tab {
+            flex: 1;
+            text-align: center;
+            padding: 18px 15px;
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            color: #6c757d;
+            transition: all 0.3s;
+            position: relative;
+        }
+        
+        .nav-tab.active {
+            background: white;
+            color: #2c3e50;
+            transform: translateY(3px);
+        }
+        
+        .nav-tab.active::after {
+            content: '';
+            position: absolute;
+            bottom: -3px;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: #667eea;
+        }
+        
+        .nav-tab:hover:not(.active) {
+            background: #e9ecef;
+            color: #495057;
+        }
+        
+        .tab-content {
+            display: none;
+            padding: 30px;
+            animation: fadeIn 0.3s ease;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .alert {
+            padding: 12px 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-size: 14px;
+        }
+        
+        .alert-success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .alert-error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .alert-info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        
+        /* Responsive */
+        @media (max-width: 768px) {
+            .nav-tab {
+                font-size: 14px;
+                padding: 15px 10px;
+            }
+            
+            .tab-content {
+                padding: 20px 15px;
+            }
+            
+            .sync-status {
+                position: relative;
+                top: auto;
+                right: auto;
+                justify-content: center;
+                margin-top: 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="sync-status">
+                <div class="sync-indicator" id="syncIndicator"></div>
+                <span id="syncStatus">Connected</span>
+            </div>
+            <h1>🏭 Sistem Upah Tekstil</h1>
+            <p>Dashboard Manajemen Upah Tenaga Kerja</p>
+        </div>
+        
+        <div class="nav-tabs">
+            <button class="nav-tab active" onclick="switchTab('dashboard')">📊 Dashboard</button>
+            <button class="nav-tab" onclick="switchTab('pabrik')">🏭 Pabrik</button>
+            <button class="nav-tab" onclick="switchTab('ongkos')">💰 Ongkos</button>
+            <button class="nav-tab" onclick="switchTab('karyawan')">👥 Karyawan</button>
+            <button class="nav-tab" onclick="switchTab('payroll')" style="color: #667eea;">⚡ Payroll</button>
+        </div>
+        
+        <!-- Alert Container -->
+        <div id="alertContainer"></div>
+        
+        <!-- Dashboard Tab -->
+        <div id="dashboard" class="tab-content active">
+            <h2>📊 Dashboard Overview</h2>
+            <p>Dashboard content will be here...</p>
+        </div>
+        
+<!-- Pabrik Tab -->
+<div id="pabrik" class="tab-content">
+    <div style="max-width: 800px; margin: 0 auto;">
+        <h2 style="color: #2c3e50; margin-bottom: 30px; font-size: 24px;">🏭 Data Pabrik</h2>
+        
+        <!-- Form Tambah Pabrik -->
+        <div style="background: #f8f9fa; padding: 25px; border-radius: 10px; margin-bottom: 30px;">
+            <h3 style="color: #2c3e50; margin-bottom: 20px; font-size: 18px;">➕ Tambah Pabrik Baru</h3>
+            <div style="display: flex; gap: 15px; align-items: end;">
+                <div style="flex: 1;">
+                    <label style="display: block; margin-bottom: 8px; font-weight: 500; color: #2c3e50;">Nama Pabrik</label>
+                    <input type="text" id="namaPabrik" placeholder="Masukkan nama pabrik..." maxlength="50" 
+                           style="width: 100%; padding: 12px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 16px;">
+                </div>
+                <div style="flex: 1;">
+                    <label style="display: block; margin-bottom: 8px; font-weight: 500; color: #2c3e50;">Alamat</label>
+                    <input type="text" id="alamatPabrik" placeholder="Masukkan alamat..." maxlength="100" 
+                           style="width: 100%; padding: 12px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 16px;">
+                </div>
+                <button onclick="tambahPabrik()" 
+                        style="padding: 12px 25px; background: #667eea; color: white; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.3s; height: 48px;">
+                    Tambah
+                </button>
+            </div>
+        </div>
+        
+        <!-- Stats Pabrik -->
+        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; border-radius: 10px; margin-bottom: 30px; text-align: center;">
+            <h3 style="margin-bottom: 10px;">📊 Total Pabrik</h3>
+            <div style="font-size: 32px; font-weight: bold;" id="totalPabrik">0</div>
+        </div>
+        
+        <!-- Daftar Pabrik -->
+        <div style="background: #f8f9fa; border-radius: 10px; overflow: hidden;">
+            <div style="background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%); color: white; padding: 15px 20px;">
+                <h3 style="margin: 0; font-size: 18px;">📋 Daftar Pabrik</h3>
+            </div>
+            <div id="pabrikList">
+                <!-- Data pabrik akan dimuat di sini -->
+            </div>
+        </div>
+    </div>
+</div>        
+<!-- Ongkos Tab -->
+       <div id="ongkos" class="tab-content">
+           <div style="max-width: 1000px; margin: 0 auto;">
+               <h2 style="color: #2c3e50; margin-bottom: 30px; font-size: 24px;">💰 Data Ongkos</h2>
+               
+               <!-- Stats Ongkos -->
+               <div style="display: grid; gap: 15px; margin-bottom: 30px; grid-template-columns: repeat(3, 1fr);">
+                   <div style="color: white; padding: 18px; border-radius: 12px; text-align: center; background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);">
+                       <div style="font-size: 22px; font-weight: bold; margin-bottom: 6px;" id="ongkosTertinggi">Rp 0</div>
+                       <div style="font-size: 13px; opacity: 0.95;">Ongkos Tertinggi</div>
+                   </div>
+                   <div style="color: white; padding: 18px; border-radius: 12px; text-align: center; background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);">
+                       <div style="font-size: 22px; font-weight: bold; margin-bottom: 6px;" id="ongkosTerendah">Rp 0</div>
+                       <div style="font-size: 13px; opacity: 0.95;">Ongkos Terendah</div>
+                   </div>
+                   <div style="color: white; padding: 18px; border-radius: 12px; text-align: center; background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
+                       <div style="font-size: 22px; font-weight: bold; margin-bottom: 6px;" id="avgOngkos">Rp 0</div>
+                       <div style="font-size: 13px; opacity: 0.95;">Rata-rata Ongkos</div>
+                   </div>
+               </div>
+               
+               <!-- Form Tambah Ongkos -->
+               <div style="background: #f8f9fa; padding: 25px; border-radius: 10px; margin-bottom: 30px;">
+                   <h3 style="color: #2c3e50; margin-bottom: 20px; font-size: 18px;">➕ Tambah Ongkos Baru</h3>
+                   
+                   <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
+                       <div>
+                           <label style="display: block; margin-bottom: 5px; font-weight: 500; color: #2c3e50; font-size: 14px;">Proses</label>
+                           <input type="text" id="namaProses" placeholder="Contoh: Tenun, Talen, Keteng..." maxlength="50" 
+                                  style="width: 100%; padding: 12px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 16px;">
+                       </div>
+                       <div>
+                           <label style="display: block; margin-bottom: 5px; font-weight: 500; color: #2c3e50; font-size: 14px;">Jenis</label>
+                           <input type="text" id="jenisProses" placeholder="Contoh: Kembang Gede, Botolan..." maxlength="50" 
+                                  style="width: 100%; padding: 12px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 16px;">
+                       </div>
+                   </div>
+                   
+                   <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
+                       <div style="position: relative;">
+                           <label style="display: block; margin-bottom: 5px; font-weight: 500; color: #2c3e50; font-size: 14px;">Ongkos</label>
+                           <div style="position: relative;">
+                               <span style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #6c757d; font-weight: 500; z-index: 1;">Rp</span>
+                               <input type="text" id="nilaiOngkos" placeholder="0" inputmode="numeric" 
+                                      style="width: 100%; padding: 12px 12px 12px 35px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 16px;">
+                           </div>
+                       </div>
+                       <div>
+                           <label style="display: block; margin-bottom: 5px; font-weight: 500; color: #2c3e50; font-size: 14px;">Unit</label>
+                           <select id="unitOngkos" style="width: 100%; padding: 12px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 16px;">
+                               <option value="">Pilih unit...</option>
+                               <option value="per baki">per baki</option>
+                               <option value="per sarung">per sarung</option>
+                               <option value="per gulung">per gulung</option>
+                               <option value="per golek">per golek</option>
+                               <option value="per kodi">per kodi</option>
+                               <option value="per pack">per pack</option>
+                               <option value="per hari">per hari</option>
+                               <option value="per minggu">per minggu</option>
+                               <option value="per bulan">per bulan</option>
+                               <option value="per tahun">per tahun</option>
+                           </select>
+                       </div>
+                   </div>
+                   
+                   <div style="margin-bottom: 20px;">
+                       <label style="display: block; margin-bottom: 10px; font-weight: 500; color: #2c3e50;">Berlaku untuk:</label>
+                       <div style="display: flex; flex-wrap: wrap; gap: 15px; padding: 15px; background: white; border-radius: 8px; border: 2px solid #e9ecef;" id="pabrikCheckboxesOngkos">
+                           <!-- Checkboxes akan dimuat di sini -->
+                       </div>
+                   </div>
+                   
+                   <div style="text-align: center;">
+                       <button onclick="tambahOngkos()" 
+                               style="padding: 12px 25px; background: #667eea; color: white; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; width: 200px; height: 48px;">
+                           ➕ Tambah Ongkos
+                       </button>
+                   </div>
+               </div>
+               
+               <!-- Filter Section -->
+               <div style="background: #e9ecef; padding: 20px; border-radius: 10px; margin-bottom: 20px;">
+                   <h3 style="margin-bottom: 15px; color: #2c3e50;">🔍 Filter & Pencarian</h3>
+                   
+                   <!-- Filter Indicator -->
+                   <div style="background: #fff3cd; border: 1px solid #ffeaa7; color: #856404; padding: 10px 15px; border-radius: 8px; margin-bottom: 15px; font-size: 14px; display: none;" id="filterIndicatorOngkos">
+                       <strong>Filter aktif:</strong> <span id="filterTextOngkos"></span>
+                       <button onclick="resetFilterOngkos()" style="background: none; border: none; color: #856404; text-decoration: underline; cursor: pointer; margin-left: 10px;">Reset</button>
+                   </div>
+
+                   <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; margin-bottom: 15px;">
+                       <div>
+                           <label style="display: block; margin-bottom: 5px; font-weight: 500; color: #2c3e50; font-size: 14px;">Filter Proses</label>
+                           <select id="filterProses" style="width: 100%; padding: 12px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 16px;">
+                               <option value="">Semua Proses</option>
+                           </select>
+                       </div>
+                       <div>
+                           <label style="display: block; margin-bottom: 5px; font-weight: 500; color: #2c3e50; font-size: 14px;">Filter Pabrik</label>
+                           <select id="filterPabrikOngkos" style="width: 100%; padding: 12px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 16px;">
+                               <option value="">Semua Pabrik</option>
+                           </select>
+                       </div>
+                       <div>
+                           <label style="display: block; margin-bottom: 5px; font-weight: 500; color: #2c3e50; font-size: 14px;">Cari</label>
+                           <input type="text" id="searchOngkos" placeholder="Cari proses/jenis..." 
+                                  style="width: 100%; padding: 12px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 16px;">
+                       </div>
+                   </div>
+                   
+                   <div style="text-align: right;">
+                       <button onclick="exportOngkosToCSV()" style="background: #28a745; color: white; padding: 8px 12px; border: none; border-radius: 5px; font-size: 12px; cursor: pointer; margin-right: 5px;">📊 CSV</button>
+                       <button onclick="exportOngkosToExcel()" style="background: #007bff; color: white; padding: 8px 12px; border: none; border-radius: 5px; font-size: 12px; cursor: pointer; margin-right: 5px;">📥 Excel</button>
+                       <button onclick="printOngkosReport()" style="background: #6f42c1; color: white; padding: 8px 12px; border: none; border-radius: 5px; font-size: 12px; cursor: pointer;">🖨️ PDF</button>
+                   </div>
+               </div>
+               
+               <!-- Daftar Ongkos -->
+               <div style="background: #f8f9fa; border-radius: 10px; overflow: hidden;">
+                   <div style="background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%); color: white; padding: 15px 20px;">
+                       <h3 style="margin: 0; font-size: 18px;">📋 Daftar Ongkos</h3>
+                   </div>
+                   <div id="ongkosList">
+                       <!-- Data ongkos akan dimuat di sini -->
+                   </div>
+               </div>
+           </div>
+       </div>        
+<!-- Ganti bagian Karyawan Tab yang ada dengan ini: -->
+        <!-- Karyawan Tab -->
+        <div id="karyawan" class="tab-content">
+            <div style="max-width: 1000px; margin: 0 auto;">
+                <h2 style="color: #2c3e50; margin-bottom: 30px; font-size: 24px;">👥 Data Karyawan</h2>
+                
+                <!-- Stats Karyawan -->
+                <div style="display: grid; gap: 15px; margin-bottom: 30px; grid-template-columns: repeat(5, 1fr);">
+                    <div style="color: white; padding: 18px; border-radius: 12px; text-align: center; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                        <div style="font-size: 22px; font-weight: bold; margin-bottom: 6px;" id="totalKaryawan">0</div>
+                        <div style="font-size: 13px; opacity: 0.95;">Total Karyawan</div>
+                    </div>
+                    <div style="color: white; padding: 18px; border-radius: 12px; text-align: center; background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);">
+                        <div style="font-size: 22px; font-weight: bold; margin-bottom: 6px;" id="karyawanAktif">0</div>
+                        <div style="font-size: 13px; opacity: 0.95;">Karyawan Aktif</div>
+                    </div>
+                    <div style="color: white; padding: 18px; border-radius: 12px; text-align: center; background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);">
+                        <div style="font-size: 22px; font-weight: bold; margin-bottom: 6px;" id="karyawanTidakAktif">0</div>
+                        <div style="font-size: 13px; opacity: 0.95;">Tidak Aktif</div>
+                    </div>
+                    <div style="color: white; padding: 18px; border-radius: 12px; text-align: center; background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
+                        <div style="font-size: 22px; font-weight: bold; margin-bottom: 6px;" id="karyawanPabrik">0</div>
+                        <div style="font-size: 13px; opacity: 0.95;">Kerja di Pabrik</div>
+                    </div>
+                    <div style="color: white; padding: 18px; border-radius: 12px; text-align: center; background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);">
+                        <div style="font-size: 22px; font-weight: bold; margin-bottom: 6px;" id="karyawanRumah">0</div>
+                        <div style="font-size: 13px; opacity: 0.95;">Kerja di Rumah</div>
+                    </div>
+                </div>
+                
+                <!-- Form Tambah Karyawan -->
+                <div style="background: #f8f9fa; padding: 25px; border-radius: 10px; margin-bottom: 30px;">
+                    <h3 style="color: #2c3e50; margin-bottom: 20px; font-size: 18px;">➕ Tambah Karyawan Baru</h3>
+                    
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
+                        <div>
+                            <label style="display: block; margin-bottom: 5px; font-weight: 500; color: #2c3e50; font-size: 14px;">Nomor Karyawan</label>
+                            <input type="text" id="nomorKaryawan" placeholder="Masukkan nomor karyawan..." 
+                                   style="width: 100%; padding: 12px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 16px;">
+                        </div>
+                        <div>
+                            <label style="display: block; margin-bottom: 5px; font-weight: 500; color: #2c3e50; font-size: 14px;">Nama Karyawan</label>
+                            <input type="text" id="namaKaryawan" placeholder="Masukkan nama lengkap..." maxlength="50" 
+                                   style="width: 100%; padding: 12px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 16px;">
+                        </div>
+                    </div>
+                    
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
+                        <div>
+                            <label style="display: block; margin-bottom: 5px; font-weight: 500; color: #2c3e50; font-size: 14px;">Pabrik</label>
+                            <select id="pabrikKaryawan" style="width: 100%; padding: 12px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 16px;">
+                                <option value="">Pilih pabrik...</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label style="display: block; margin-bottom: 5px; font-weight: 500; color: #2c3e50; font-size: 14px;">Proses Kerja</label>
+                            <select id="prosesKerja" style="width: 100%; padding: 12px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 16px;">
+                                <option value="">Pilih proses...</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px;">
+                        <div>
+                            <label style="display: block; margin-bottom: 5px; font-weight: 500; color: #2c3e50; font-size: 14px;">Lokasi Kerja</label>
+                            <select id="lokasiKerja" style="width: 100%; padding: 12px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 16px;">
+                                <option value="">Pilih lokasi...</option>
+                                <option value="Rumah">Rumah</option>
+                                <option value="Pabrik">Pabrik</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label style="display: block; margin-bottom: 5px; font-weight: 500; color: #2c3e50; font-size: 14px;">Status</label>
+                            <select id="statusKaryawan" style="width: 100%; padding: 12px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 16px;">
+                                <option value="">Pilih status...</option>
+                                <option value="Aktif">Aktif</option>
+                                <option value="Tidak Aktif">Tidak Aktif</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div style="text-align: center;">
+                        <button onclick="tambahKaryawan()" 
+                                style="padding: 12px 25px; background: #667eea; color: white; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; width: 200px; height: 48px;">
+                            ➕ Tambah Karyawan
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Filter Section -->
+                <div style="background: #e9ecef; padding: 20px; border-radius: 10px; margin-bottom: 20px;">
+                    <h3 style="margin-bottom: 15px; color: #2c3e50;">🔍 Filter & Pencarian</h3>
+                    
+                    <!-- Filter Indicator -->
+                    <div style="background: #fff3cd; border: 1px solid #ffeaa7; color: #856404; padding: 10px 15px; border-radius: 8px; margin-bottom: 15px; font-size: 14px; display: none;" id="filterIndicatorKaryawan">
+                        <strong>Filter aktif:</strong> <span id="filterTextKaryawan"></span>
+                        <button onclick="resetFilterKaryawan()" style="background: none; border: none; color: #856404; text-decoration: underline; cursor: pointer; margin-left: 10px;">Reset</button>
+                    </div>
+
+                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 15px; margin-bottom: 15px;">
+                        <div>
+                            <label style="display: block; margin-bottom: 5px; font-weight: 500; color: #2c3e50; font-size: 14px;">Filter Pabrik</label>
+                            <select id="filterPabrikKaryawan" style="width: 100%; padding: 12px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 16px;">
+                                <option value="">Semua Pabrik</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label style="display: block; margin-bottom: 5px; font-weight: 500; color: #2c3e50; font-size: 14px;">Filter Proses</label>
+                            <select id="filterProsesKaryawan" style="width: 100%; padding: 12px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 16px;">
+                                <option value="">Semua Proses</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label style="display: block; margin-bottom: 5px; font-weight: 500; color: #2c3e50; font-size: 14px;">Filter Lokasi</label>
+                            <select id="filterLokasiKaryawan" style="width: 100%; padding: 12px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 16px;">
+                                <option value="">Semua Lokasi</option>
+                                <option value="Rumah">Rumah</option>
+                                <option value="Pabrik">Pabrik</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label style="display: block; margin-bottom: 5px; font-weight: 500; color: #2c3e50; font-size: 14px;">Filter Status</label>
+                            <select id="filterStatusKaryawan" style="width: 100%; padding: 12px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 16px;">
+                                <option value="">Semua Status</option>
+                                <option value="Aktif">Aktif</option>
+                                <option value="Tidak Aktif">Tidak Aktif</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div style="display: grid; grid-template-columns: 1fr auto; gap: 15px; align-items: end;">
+                        <div>
+                            <label style="display: block; margin-bottom: 5px; font-weight: 500; color: #2c3e50; font-size: 14px;">Cari Nama/Nomor</label>
+                            <input type="text" id="searchKaryawan" placeholder="Cari nama/nomor..." 
+                                   style="width: 100%; padding: 12px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 16px;">
+                        </div>
+                        <div style="display: flex; gap: 4px;">
+                            <button onclick="exportKaryawanToCSV()" style="background: #28a745; color: white; padding: 8px 12px; border: none; border-radius: 5px; font-size: 12px; cursor: pointer;">📊 CSV</button>
+                            <button onclick="exportKaryawanToExcel()" style="background: #007bff; color: white; padding: 8px 12px; border: none; border-radius: 5px; font-size: 12px; cursor: pointer;">📥 Excel</button>
+                            <button onclick="printKaryawanReport()" style="background: #6f42c1; color: white; padding: 8px 12px; border: none; border-radius: 5px; font-size: 12px; cursor: pointer;">🖨️ PDF</button>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Daftar Karyawan -->
+                <div style="background: #f8f9fa; border-radius: 10px; overflow: hidden;">
+                    <div style="background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%); color: white; padding: 15px 20px;">
+                        <h3 style="margin: 0; font-size: 18px;">📋 Daftar Karyawan</h3>
+                    </div>
+                    <div id="karyawanList">
+                        <!-- Data karyawan akan dimuat di sini -->
+                    </div>
+                </div>
+            </div>
+        </div>        
+        <!-- Payroll Tab (New) -->
+        <div id="payroll" class="tab-content">
+            <h2>⚡ Weekly Payroll</h2>
+            <div class="alert alert-info">
+                <strong>Coming Soon!</strong> Modul perhitungan upah mingguan berdasarkan data master yang sudah diinput.
+            </div>
+        </div>
+    </div>
+
+<script src="sync.js"></script>
+<script>
+        // ===== GLOBAL FUNCTIONS =====
+	function switchTab(tabName) {
+            document.querySelectorAll('.tab-content').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            
+            document.querySelectorAll('.nav-tab').forEach(navTab => {
+                navTab.classList.remove('active');
+            });
+            
+            document.getElementById(tabName).classList.add('active');
+            document.querySelector(`[onclick="switchTab('${tabName}')"]`).classList.add('active');
+            document.title = `Sistem Upah Tekstil - ${tabName.charAt(0).toUpperCase() + tabName.slice(1)}`;
+            
+            if (tabName === 'pabrik') {
+                setTimeout(() => renderPabrikList(), 100);
+            } else if (tabName === 'ongkos') {
+                setTimeout(() => {
+                    loadPabrikCheckboxesOngkos();
+                    loadOngkosFilterOptions();
+                    renderOngkosList();
+                    updateOngkosStats();
+                }, 100);
+            } else if (tabName === 'karyawan') {
+                setTimeout(() => {
+                    loadKaryawanDropdownOptions();
+                    renderKaryawanList();
+                    updateKaryawanStats();
+                    setupKaryawanEventListeners();
+                }, 100);
+            }
+        }
+
+        function setupKaryawanEventListeners() {
+            const filterPabrik = document.getElementById('filterPabrikKaryawan');
+            const filterProses = document.getElementById('filterProsesKaryawan');
+            const filterLokasi = document.getElementById('filterLokasiKaryawan');
+            const filterStatus = document.getElementById('filterStatusKaryawan');
+            const searchKaryawan = document.getElementById('searchKaryawan');
+
+            if (filterPabrik) filterPabrik.addEventListener('change', applyKaryawanFilter);
+            if (filterProses) filterProses.addEventListener('change', applyKaryawanFilter);
+            if (filterLokasi) filterLokasi.addEventListener('change', applyKaryawanFilter);
+            if (filterStatus) filterStatus.addEventListener('change', applyKaryawanFilter);
+            if (searchKaryawan) searchKaryawan.addEventListener('input', debounceKaryawan(applyKaryawanFilter, 300));
+        }
+       
+        function updateSyncStatus(status, message) {
+            const indicator = document.getElementById('syncIndicator');
+            const statusText = document.getElementById('syncStatus');
+            
+            if (indicator) indicator.className = `sync-indicator ${status}`;
+            if (statusText) statusText.textContent = message;
+        }
+        
+        function showAlert(message, type = 'success') {
+            const container = document.getElementById('alertContainer');
+            if (!container) return;
+            
+            const alertClass = `alert-${type}`;
+            const alertElement = document.createElement('div');
+            alertElement.className = `alert ${alertClass}`;
+            alertElement.style.animation = 'fadeIn 0.3s ease';
+            alertElement.textContent = message;
+            
+            container.appendChild(alertElement);
+            
+            setTimeout(() => {
+                if (alertElement.parentNode) {
+                    alertElement.style.animation = 'fadeOut 0.3s ease';
+                    setTimeout(() => {
+                        alertElement.remove();
+                    }, 300);
+                }
+            }, 4000);
+        }
+
+        // ===== HELPER FUNCTIONS =====
+        function formatDate(dateString) {
+            if (!dateString) return '';
+            const date = new Date(dateString);
+            return date.toLocaleDateString('id-ID', {
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric'
+            });
+        }
+        
+        function formatNumber(num) {
+            if (num === '' || num === null || num === undefined) return '';
+            return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+        }
+        
+        function formatCurrency(amount) {
+            if (isNaN(amount) || amount === null || amount === undefined) return 'Rp 0';
+            return new Intl.NumberFormat('id-ID', {
+                style: 'currency',
+                currency: 'IDR',
+                minimumFractionDigits: 0
+            }).format(amount);
+        }
+        
+        function unformatNumber(str) {
+            if (!str) return 0;
+            return parseInt(str.toString().replace(/\./g, '')) || 0;
+        }
+
+        // ===== PABRIK FUNCTIONS =====
+        function generateNewPabrikId() {
+            const data = loadPabrikData();
+            return data.length > 0 ? Math.max(...data.map(p => p.id)) + 1 : 1;
+        }
+
+        function tambahPabrik() {
+            const namaInput = document.getElementById('namaPabrik');
+            const alamatInput = document.getElementById('alamatPabrik');
+            const nama = namaInput.value.trim();
+            const alamat = alamatInput.value.trim();
+            
+            if (!nama) {
+                showAlert('Nama pabrik tidak boleh kosong!', 'error');
+                namaInput.focus();
+                return;
+            }
+            
+            if (!alamat) {
+                showAlert('Alamat pabrik tidak boleh kosong!', 'error');
+                alamatInput.focus();
+                return;
+            }
+            
+            const data = loadPabrikData();
+            if (data.some(p => p.nama.toLowerCase() === nama.toLowerCase())) {
+                showAlert('Nama pabrik sudah ada!', 'error');
+                namaInput.focus();
+                return;
+            }
+            
+            const newPabrik = {
+                id: generateNewPabrikId(),
+                nama: nama,
+                alamat: alamat,
+                created_at: new Date().toISOString()
+            };
+            
+            data.push(newPabrik);
+            savePabrikData(data);
+            
+            namaInput.value = '';
+            alamatInput.value = '';
+            renderPabrikList();
+            showAlert(`Pabrik "${nama}" berhasil ditambahkan!`, 'success');
+        }
+
+        function renderPabrikList() {
+            const data = loadPabrikData();
+            const container = document.getElementById('pabrikList');
+            const totalElement = document.getElementById('totalPabrik');
+            
+            if (totalElement) totalElement.textContent = data.length;
+            if (!container) return;
+            
+            if (data.length === 0) {
+                container.innerHTML = `
+                    <div style="text-align: center; padding: 40px; color: #6c757d;">
+                        <div style="font-size: 48px; margin-bottom: 15px; opacity: 0.5;">🏭</div>
+                        <p style="margin: 0 0 5px 0;">Belum ada data pabrik</p>
+                        <small>Tambahkan pabrik pertama Anda di atas</small>
+                    </div>
+                `;
+                return;
+            }
+            
+            let html = '';
+            data.forEach((pabrik, index) => {
+                html += `
+                    <div style="padding: 15px 20px; border-bottom: 1px solid #e9ecef; transition: background-color 0.3s;" 
+                         onmouseover="this.style.background='#e9ecef'" onmouseout="this.style.background='white'">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <div style="display: flex; align-items: center; gap: 15px;">
+                                <div style="background: #667eea; color: white; width: 35px; height: 35px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 14px;">
+                                    ${index + 1}
+                                </div>
+                                <div>
+                                    <div style="font-size: 16px; font-weight: 600; color: #2c3e50; margin-bottom: 3px;">
+                                        ${pabrik.nama}
+                                    </div>
+                                    <div style="font-size: 14px; color: #6c757d;">
+                                        📍 ${pabrik.alamat}
+                                    </div>
+                                    <div style="font-size: 12px; color: #6c757d; margin-top: 2px;">
+                                        📅 ${formatDate(pabrik.created_at)}
+                                    </div>
+                                </div>
+                            </div>
+                            <div style="display: flex; gap: 8px;">
+                                <button onclick="editPabrik(${pabrik.id})" 
+                                        style="background: #f39c12; color: white; padding: 6px 12px; border: none; border-radius: 5px; font-size: 12px; cursor: pointer;">
+                                   ✏️ Edit
+                                </button>
+                                <button onclick="hapusPabrik(${pabrik.id}, '${pabrik.nama}')" 
+                                        style="background: #e74c3c; color: white; padding: 6px 12px; border: none; border-radius: 5px; font-size: 12px; cursor: pointer;">
+                                    🗑️ Hapus
+                                </button>
+                            </div>
+                        </div>
+                        <div id="edit-${pabrik.id}" style="display: none; margin-top: 15px; background: #fff3cd; padding: 15px; border-radius: 8px; border: 1px solid #ffeaa7;">
+                            <div style="margin-bottom: 10px;">
+                                <label style="display: block; margin-bottom: 5px; font-weight: 500; font-size: 12px; color: #856404;">Nama Pabrik:</label>
+                                <input type="text" id="editNama-${pabrik.id}" value="${pabrik.nama}" maxlength="50"
+                                       style="width: 100%; padding: 8px; border: 2px solid #e9ecef; border-radius: 5px; font-size: 14px;">
+                            </div>
+                            <div style="margin-bottom: 15px;">
+                                <label style="display: block; margin-bottom: 5px; font-weight: 500; font-size: 12px; color: #856404;">Alamat:</label>
+                                <input type="text" id="editAlamat-${pabrik.id}" value="${pabrik.alamat}" maxlength="100"
+                                       style="width: 100%; padding: 8px; border: 2px solid #e9ecef; border-radius: 5px; font-size: 14px;">
+                            </div>
+                            <div style="display: flex; gap: 8px; justify-content: end;">
+                                <button onclick="simpanEditPabrik(${pabrik.id})" 
+                                        style="background: #27ae60; color: white; padding: 8px 15px; border: none; border-radius: 5px; font-size: 12px; cursor: pointer;">
+                                    ✅ Simpan
+                                </button>
+                                <button onclick="batalEditPabrik(${pabrik.id})" 
+                                        style="background: #6c757d; color: white; padding: 8px 15px; border: none; border-radius: 5px; font-size: 12px; cursor: pointer;">
+                                    ❌ Batal
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });            
+            container.innerHTML = html;
+        }
+
+        function editPabrik(id) {
+            document.querySelectorAll('[id^="edit-"]').forEach(form => {
+                form.style.display = 'none';
+            });
+            
+            const editForm = document.getElementById(`edit-${id}`);
+            if (editForm) {
+                editForm.style.display = 'block';
+                const namaInput = document.getElementById(`editNama-${id}`);
+                if (namaInput) namaInput.focus();
+            }
+        }
+
+        function simpanEditPabrik(id) {
+            const namaInput = document.getElementById(`editNama-${id}`);
+            const alamatInput = document.getElementById(`editAlamat-${id}`);
+            const namaBaru = namaInput.value.trim();
+            const alamatBaru = alamatInput.value.trim();
+            
+            if (!namaBaru) {
+                showAlert('Nama pabrik tidak boleh kosong!', 'error');
+                namaInput.focus();
+                return;
+            }
+            
+            if (!alamatBaru) {
+                showAlert('Alamat tidak boleh kosong!', 'error');
+                alamatInput.focus();
+                return;
+            }
+            
+            const data = loadPabrikData();
+            if (data.some(p => p.id !== id && p.nama.toLowerCase() === namaBaru.toLowerCase())) {
+                showAlert('Nama pabrik sudah ada!', 'error');
+                namaInput.focus();
+                return;
+            }
+            
+            const pabrikIndex = data.findIndex(p => p.id === id);
+            if (pabrikIndex !== -1) {
+                const namaLama = data[pabrikIndex].nama;
+                data[pabrikIndex].nama = namaBaru;
+                data[pabrikIndex].alamat = alamatBaru;
+                data[pabrikIndex].updated_at = new Date().toISOString();
+                
+                savePabrikData(data);
+                renderPabrikList();
+                showAlert(`Pabrik "${namaLama}" berhasil diupdate!`, 'success');
+            }
+        }
+
+        function batalEditPabrik(id) {
+            const editForm = document.getElementById(`edit-${id}`);
+            if (editForm) {
+                editForm.style.display = 'none';
+                
+                const data = loadPabrikData();
+                const pabrik = data.find(p => p.id === id);
+                if (pabrik) {
+                    const namaInput = document.getElementById(`editNama-${id}`);
+                    const alamatInput = document.getElementById(`editAlamat-${id}`);
+                    if (namaInput) namaInput.value = pabrik.nama;
+                    if (alamatInput) alamatInput.value = pabrik.alamat;
+                }
+            }
+        }
+
+        function hapusPabrik(id, nama) {
+            if (confirm(`Yakin ingin menghapus pabrik "${nama}"?`)) {
+                let data = loadPabrikData();
+                data = data.filter(p => p.id !== id);
+                savePabrikData(data);
+                renderPabrikList();
+                showAlert(`Pabrik "${nama}" berhasil dihapus!`, 'success');
+            }
+        }
+
+        // ===== ONGKOS FUNCTIONS =====
+        function generateNewOngkosId() {
+            const data = loadOngkosData();
+            return data.length > 0 ? Math.max(...data.map(o => o.id)) + 1 : 1;
+        }
+
+        function loadPabrikCheckboxesOngkos() {
+            const pabrikData = loadPabrikData();
+            const container = document.getElementById('pabrikCheckboxesOngkos');
+            
+            console.log('🔄 Loading pabrik checkboxes...', pabrikData.length, 'pabrik found');
+            
+            if (!container) {
+                console.error('❌ Container pabrikCheckboxesOngkos not found!');
+                return;
+            }
+            
+            if (pabrikData.length === 0) {
+                container.innerHTML = '<p style="color: #6c757d; margin: 0; font-style: italic;">Belum ada data pabrik. Silakan tambah pabrik dulu.</p>';
+                return;
+            }
+            
+            let html = '';
+            
+            html += `
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <input type="checkbox" id="semuaPabrikOngkos" onchange="toggleSemuaPabrikOngkos()" style="width: 18px; height: 18px;">
+                    <label for="semuaPabrikOngkos" style="margin: 0; font-weight: 600; cursor: pointer; color: #2c3e50;">Semua Pabrik</label>
+                </div>
+            `;
+            
+            pabrikData.forEach(pabrik => {
+                html += `
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <input type="checkbox" id="pabrikOngkos-${pabrik.id}" class="pabrik-checkbox-ongkos" value="${pabrik.id}" onchange="updateSemuaPabrikOngkos()" style="width: 18px; height: 18px;">
+                        <label for="pabrikOngkos-${pabrik.id}" style="margin: 0; cursor: pointer; color: #495057;">${pabrik.nama}</label>
+                    </div>
+                `;
+            });
+            
+            container.innerHTML = html;
+            console.log('✅ Pabrik checkboxes loaded successfully');
+        }
+
+        function toggleSemuaPabrikOngkos() {
+            const semuaCheckbox = document.getElementById('semuaPabrikOngkos');
+            const pabrikCheckboxes = document.querySelectorAll('.pabrik-checkbox-ongkos');
+            
+            pabrikCheckboxes.forEach(checkbox => {
+                checkbox.checked = semuaCheckbox.checked;
+            });
+        }
+
+        function updateSemuaPabrikOngkos() {
+            const semuaCheckbox = document.getElementById('semuaPabrikOngkos');
+            const pabrikCheckboxes = document.querySelectorAll('.pabrik-checkbox-ongkos');
+            const checkedBoxes = document.querySelectorAll('.pabrik-checkbox-ongkos:checked');
+            
+            if (semuaCheckbox) {
+                semuaCheckbox.checked = checkedBoxes.length === pabrikCheckboxes.length;
+            }
+        }
+
+	function applyOngkosFilter() {
+            const filterProses = document.getElementById('filterProses').value;
+            const filterPabrik = document.getElementById('filterPabrikOngkos').value;
+            const searchTerm = document.getElementById('searchOngkos').value.toLowerCase();
+            
+            let data = loadOngkosData();
+            let filteredData = data;
+            
+            // Filter by proses
+            if (filterProses) {
+                filteredData = filteredData.filter(o => o.proses === filterProses);
+            }
+            
+            // Filter by pabrik
+            if (filterPabrik) {
+                filteredData = filteredData.filter(o => 
+                    o.pabrik_list && o.pabrik_list.includes(parseInt(filterPabrik))
+                );
+            }
+            
+            // Search filter
+            if (searchTerm) {
+                filteredData = filteredData.filter(o => 
+                    o.proses.toLowerCase().includes(searchTerm) ||
+                    o.jenis.toLowerCase().includes(searchTerm)
+                );
+            }
+            
+            // Show/hide filter indicator
+            const indicator = document.getElementById('filterIndicatorOngkos');
+            const filterText = document.getElementById('filterTextOngkos');
+            
+            if (filterProses || filterPabrik || searchTerm) {
+                let filterDesc = [];
+                if (filterProses) filterDesc.push(`Proses: ${filterProses}`);
+                if (filterPabrik) {
+                    const pabrikName = loadPabrikData().find(p => p.id == filterPabrik)?.nama || 'Unknown';
+                    filterDesc.push(`Pabrik: ${pabrikName}`);
+                }
+                if (searchTerm) filterDesc.push(`Pencarian: "${searchTerm}"`);
+                
+                filterText.textContent = filterDesc.join(', ');
+                indicator.style.display = 'block';
+            } else {
+                indicator.style.display = 'none';
+            }
+            
+            // Render filtered data
+            renderOngkosListFiltered(filteredData);
+        }
+
+        function loadOngkosFilterOptions() {
+            const pabrikData = loadPabrikData();
+            const ongkosData = loadOngkosData();
+            
+            const filterPabrikOngkos = document.getElementById('filterPabrikOngkos');
+            if (filterPabrikOngkos) {
+                let pabrikOptions = '<option value="">Semua Pabrik</option>';
+                pabrikData.forEach(pabrik => {
+                    pabrikOptions += `<option value="${pabrik.id}">${pabrik.nama}</option>`;
+                });
+                filterPabrikOngkos.innerHTML = pabrikOptions;
+            }
+            
+            const uniqueProses = [...new Set(ongkosData.map(o => o.proses))];
+            const filterProses = document.getElementById('filterProses');
+            if (filterProses) {
+                let prosesOptions = '<option value="">Semua Proses</option>';
+                uniqueProses.sort().forEach(proses => {
+                    prosesOptions += `<option value="${proses}">${proses}</option>`;
+                });
+                filterProses.innerHTML = prosesOptions;
+            }
+        }
+
+        function updateOngkosStats() {
+            const data = loadOngkosData();
+            
+            let tertinggi = 0;
+            let terendah = 0;
+            let rata2 = 0;
+            
+            if (data.length > 0) {
+                const values = data.map(o => o.ongkos || 0);
+                tertinggi = Math.max(...values);
+                terendah = Math.min(...values);
+                rata2 = values.reduce((sum, val) => sum + val, 0) / values.length;
+            }
+            
+            const tertinggiEl = document.getElementById('ongkosTertinggi');
+            const terendahEl = document.getElementById('ongkosTerendah');
+            const avgEl = document.getElementById('avgOngkos');
+            
+            if (tertinggiEl) tertinggiEl.textContent = formatCurrency(tertinggi);
+            if (terendahEl) terendahEl.textContent = formatCurrency(terendah);
+            if (avgEl) avgEl.textContent = formatCurrency(rata2);
+        }
+
+	function renderOngkosList() {
+            const data = loadOngkosData();
+            renderOngkosListFiltered(data);
+        }
+
+        function renderOngkosListFiltered(data) {
+            const container = document.getElementById('ongkosList');
+            
+            if (!container) return;
+            
+            if (data.length === 0) {
+                container.innerHTML = `
+                    <div style="text-align: center; padding: 40px; color: #6c757d;">
+                        <div style="font-size: 48px; margin-bottom: 15px; opacity: 0.5;">💰</div>
+                        <p style="margin: 0 0 5px 0;">Tidak ada data ongkos</p>
+                        <small>Sesuaikan filter atau tambahkan ongkos baru</small>
+                    </div>
+                `;
+                return;
+            }
+            
+            // Group by proses
+            const groupedData = {};
+            data.forEach(ongkos => {
+                if (!groupedData[ongkos.proses]) {
+                    groupedData[ongkos.proses] = [];
+                }
+                groupedData[ongkos.proses].push(ongkos);
+            });
+            
+            let html = '';
+            
+            Object.keys(groupedData).sort().forEach(proses => {
+                const items = groupedData[proses];
+                
+                // Header proses
+                html += `
+                    <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 12px 20px; margin-top: 10px; font-weight: 600; font-size: 16px;">
+                        🔧 ${proses} (${items.length} jenis)
+                    </div>
+                `;
+                
+                // Items dalam proses
+                items.forEach((ongkos, index) => {
+                    const pabrikNames = getPabrikNames(ongkos.pabrik_list || []);
+                    
+                    html += `
+                        <div style="padding: 15px 20px; border-bottom: 1px solid #e9ecef; transition: background-color 0.3s; background: white;" 
+                             onmouseover="this.style.background='#f8f9fa'" onmouseout="this.style.background='white'">
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <div style="display: flex; align-items: center; gap: 15px;">
+                                    <div style="background: #28a745; color: white; width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 12px;">
+                                        ${index + 1}
+                                    </div>
+                                    <div>
+                                        <div style="font-size: 16px; font-weight: 600; color: #2c3e50; margin-bottom: 3px;">
+                                            ${ongkos.jenis}
+                                        </div>
+                                        <div style="font-size: 18px; font-weight: 700; color: #27ae60; margin-bottom: 3px;">
+                                            ${formatCurrency(ongkos.ongkos)} ${ongkos.unit}
+                                        </div>
+                                        <div style="font-size: 12px; color: #6c757d;">
+                                            📍 ${pabrikNames.join(', ')}
+                                        </div>
+                                        <div style="font-size: 12px; color: #6c757d; margin-top: 2px;">
+                                            📅 ${formatDate(ongkos.created_at)}
+                                        </div>
+                                    </div>
+                                </div>
+                                <div style="display: flex; gap: 8px;">
+                                    <button onclick="editOngkos(${ongkos.id})" 
+                                            style="background: #f39c12; color: white; padding: 6px 12px; border: none; border-radius: 5px; font-size: 12px; cursor: pointer;">
+                                       ✏️ Edit
+                                    </button>
+                                    <button onclick="hapusOngkos(${ongkos.id}, '${ongkos.proses} - ${ongkos.jenis}')" 
+                                            style="background: #e74c3c; color: white; padding: 6px 12px; border: none; border-radius: 5px; font-size: 12px; cursor: pointer;">
+                                        🗑️ Hapus
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+            });
+            
+            container.innerHTML = html;
+        }
+
+        function getPabrikNames(pabrikIds) {
+            if (!pabrikIds || !Array.isArray(pabrikIds)) return [];
+            
+            const pabrikData = loadPabrikData();
+            return pabrikIds.map(id => {
+                const pabrik = pabrikData.find(p => p.id === id);
+                return pabrik ? pabrik.nama : `Pabrik ${id}`;
+            });
+        }
+
+	function tambahOngkos() {
+            const prosesInput = document.getElementById('namaProses');
+            const jenisInput = document.getElementById('jenisProses');
+            const ongkosInput = document.getElementById('nilaiOngkos');
+            const unitSelect = document.getElementById('unitOngkos');
+            
+            const proses = prosesInput.value.trim();
+            const jenis = jenisInput.value.trim();
+            const ongkosValue = unformatNumber(ongkosInput.value);
+            const unit = unitSelect.value;
+            
+            if (!proses) {
+                showAlert('Nama proses tidak boleh kosong!', 'error');
+                prosesInput.focus();
+                return;
+            }
+            
+            if (!jenis) {
+                showAlert('Jenis proses tidak boleh kosong!', 'error');
+                jenisInput.focus();
+                return;
+            }
+            
+            if (!ongkosValue || ongkosValue <= 0) {
+                showAlert('Ongkos harus diisi dan lebih dari 0!', 'error');
+                ongkosInput.focus();
+                return;
+            }
+            
+            if (!unit) {
+                showAlert('Unit harus dipilih!', 'error');
+                unitSelect.focus();
+                return;
+            }
+            
+            const checkedPabrik = [];
+            document.querySelectorAll('.pabrik-checkbox-ongkos:checked').forEach(checkbox => {
+                checkedPabrik.push(parseInt(checkbox.value));
+            });
+            
+            if (checkedPabrik.length === 0) {
+                showAlert('Pilih minimal satu pabrik!', 'error');
+                return;
+            }
+            
+            const data = loadOngkosData();
+            const duplicate = data.find(o => 
+                o.proses.toLowerCase() === proses.toLowerCase() && 
+                o.jenis.toLowerCase() === jenis.toLowerCase()
+            );
+            
+            if (duplicate) {
+                showAlert(`Ongkos "${proses} - ${jenis}" sudah ada!`, 'error');
+                prosesInput.focus();
+                return;
+            }
+            
+            const newOngkos = {
+                id: generateNewOngkosId(),
+                proses: proses,
+                jenis: jenis,
+                ongkos: ongkosValue,
+                unit: unit,
+                pabrik_list: checkedPabrik,
+                created_at: new Date().toISOString()
+            };
+            
+            data.push(newOngkos);
+            saveOngkosData(data);
+            
+            prosesInput.value = '';
+            jenisInput.value = '';
+            ongkosInput.value = '';
+            unitSelect.value = '';
+            document.querySelectorAll('.pabrik-checkbox-ongkos').forEach(cb => cb.checked = false);
+            document.getElementById('semuaPabrikOngkos').checked = false;
+            
+            renderOngkosList();
+            updateOngkosStats();
+            loadOngkosFilterOptions();
+            
+            showAlert(`Ongkos "${proses} - ${jenis}" berhasil ditambahkan!`, 'success');
+        }
+
+	function editOngkos(id) {
+            const data = loadOngkosData();
+            const ongkos = data.find(o => o.id === id);
+            if (!ongkos) return;
+            
+            // Fill form with current data
+            document.getElementById('namaProses').value = ongkos.proses;
+            document.getElementById('jenisProses').value = ongkos.jenis;
+            document.getElementById('nilaiOngkos').value = formatNumber(ongkos.ongkos);
+            document.getElementById('unitOngkos').value = ongkos.unit;
+            
+            // Check appropriate pabrik checkboxes
+            document.querySelectorAll('.pabrik-checkbox-ongkos').forEach(cb => {
+                cb.checked = ongkos.pabrik_list.includes(parseInt(cb.value));
+            });
+            updateSemuaPabrikOngkos();
+            
+            // Change button to update mode
+            const addButton = document.querySelector('button[onclick="tambahOngkos()"]');
+            addButton.textContent = '✅ Update Ongkos';
+            addButton.setAttribute('onclick', `updateOngkos(${id})`);
+            
+            // Add cancel button
+            const cancelButton = document.createElement('button');
+            cancelButton.textContent = '❌ Batal Edit';
+            cancelButton.style.cssText = 'padding: 12px 25px; background: #6c757d; color: white; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; margin-left: 10px;';
+            cancelButton.onclick = () => cancelEditOngkos();
+            addButton.parentNode.appendChild(cancelButton);
+            
+            // Scroll to form
+            document.getElementById('namaProses').scrollIntoView({ behavior: 'smooth' });
+            document.getElementById('namaProses').focus();
+            
+            showAlert('Data dimuat untuk edit. Ubah data lalu klik Update.', 'info');
+        }
+
+	function cancelEditOngkos() {
+            // Reset form
+            document.getElementById('namaProses').value = '';
+            document.getElementById('jenisProses').value = '';
+            document.getElementById('nilaiOngkos').value = '';
+            document.getElementById('unitOngkos').value = '';
+            document.querySelectorAll('.pabrik-checkbox-ongkos').forEach(cb => cb.checked = false);
+            document.getElementById('semuaPabrikOngkos').checked = false;
+            
+            // Reset buttons - FIXED
+            const allButtons = document.querySelectorAll('button');
+            allButtons.forEach(btn => {
+                if (btn.textContent.includes('Update Ongkos')) {
+                    btn.textContent = '➕ Tambah Ongkos';
+                    btn.setAttribute('onclick', 'tambahOngkos()');
+                }
+                if (btn.textContent.includes('Batal Edit')) {
+                    btn.remove();
+                }
+            });
+            
+            showAlert('Edit dibatalkan!', 'info');
+        }	function updateOngkos(id) {
+            const prosesInput = document.getElementById('namaProses');
+            const jenisInput = document.getElementById('jenisProses');
+            const ongkosInput = document.getElementById('nilaiOngkos');
+            const unitSelect = document.getElementById('unitOngkos');
+            
+            const proses = prosesInput.value.trim();
+            const jenis = jenisInput.value.trim();
+            const ongkosValue = unformatNumber(ongkosInput.value);
+            const unit = unitSelect.value;
+            
+            if (!proses) {
+                showAlert('Nama proses tidak boleh kosong!', 'error');
+                prosesInput.focus();
+                return;
+            }
+            
+            if (!jenis) {
+                showAlert('Jenis proses tidak boleh kosong!', 'error');
+                jenisInput.focus();
+                return;
+            }
+            
+            if (!ongkosValue || ongkosValue <= 0) {
+                showAlert('Ongkos harus diisi dan lebih dari 0!', 'error');
+                ongkosInput.focus();
+                return;
+            }
+            
+            if (!unit) {
+                showAlert('Unit harus dipilih!', 'error');
+                unitSelect.focus();
+                return;
+            }
+            
+            const checkedPabrik = [];
+            document.querySelectorAll('.pabrik-checkbox-ongkos:checked').forEach(checkbox => {
+                checkedPabrik.push(parseInt(checkbox.value));
+            });
+            
+            if (checkedPabrik.length === 0) {
+                showAlert('Pilih minimal satu pabrik!', 'error');
+                return;
+            }
+            
+            const data = loadOngkosData();
+            const duplicate = data.find(o => 
+                o.id !== id &&
+                o.proses.toLowerCase() === proses.toLowerCase() && 
+                o.jenis.toLowerCase() === jenis.toLowerCase()
+            );
+            
+            if (duplicate) {
+                showAlert(`Ongkos "${proses} - ${jenis}" sudah ada!`, 'error');
+                prosesInput.focus();
+                return;
+            }
+            
+            const ongkosIndex = data.findIndex(o => o.id === id);
+            if (ongkosIndex !== -1) {
+                const oldName = `${data[ongkosIndex].proses} - ${data[ongkosIndex].jenis}`;
+                
+                data[ongkosIndex] = {
+                    ...data[ongkosIndex],
+                    proses: proses,
+                    jenis: jenis,
+                    ongkos: ongkosValue,
+                    unit: unit,
+                    pabrik_list: checkedPabrik,
+                    updated_at: new Date().toISOString()
+                };
+                
+                saveOngkosData(data);
+                
+                // Reset form
+                prosesInput.value = '';
+                jenisInput.value = '';
+                ongkosInput.value = '';
+                unitSelect.value = '';
+                document.querySelectorAll('.pabrik-checkbox-ongkos').forEach(cb => cb.checked = false);
+                document.getElementById('semuaPabrikOngkos').checked = false;
+                
+                // Reset button ke mode tambah - FIXED
+                const allButtons = document.querySelectorAll('button');
+                allButtons.forEach(btn => {
+                    if (btn.textContent.includes('Update Ongkos')) {
+                        btn.textContent = '➕ Tambah Ongkos';
+                        btn.setAttribute('onclick', 'tambahOngkos()');
+                    }
+                    // Remove cancel button
+                    if (btn.textContent.includes('Batal Edit')) {
+                        btn.remove();
+                    }
+                });
+                
+                renderOngkosList();
+                updateOngkosStats();
+                loadOngkosFilterOptions();
+                
+                showAlert(`Ongkos "${oldName}" berhasil diupdate!`, 'success');
+            }
+        }        function hapusOngkos(id, nama) {
+            if (confirm(`Yakin ingin menghapus ongkos "${nama}"?`)) {
+                let data = loadOngkosData();
+                data = data.filter(o => o.id !== id);
+                saveOngkosData(data);
+                
+                renderOngkosList();
+                updateOngkosStats();
+                loadOngkosFilterOptions();
+                
+                showAlert(`Ongkos "${nama}" berhasil dihapus!`, 'success');
+            }
+        }
+
+        function resetFilterOngkos() {
+            document.getElementById('filterProses').value = '';
+            document.getElementById('filterPabrikOngkos').value = '';
+            document.getElementById('searchOngkos').value = '';
+            
+            document.getElementById('filterIndicatorOngkos').style.display = 'none';
+            
+            renderOngkosList();
+            showAlert('Filter direset!', 'success');
+        }
+
+        function exportOngkosToCSV() {
+            const data = loadOngkosData();
+            if (data.length === 0) {
+                showAlert('Tidak ada data untuk diekspor!', 'error');
+                return;
+            }
+            
+            const pabrikData = loadPabrikData();
+            let csv = 'No,Proses,Jenis,Ongkos,Unit,Pabrik,Tanggal\n';
+            
+            data.forEach((ongkos, index) => {
+                const pabrikNames = getPabrikNames(ongkos.pabrik_list || []);
+                csv += `${index + 1},"${ongkos.proses}","${ongkos.jenis}","${formatCurrency(ongkos.ongkos)}","${ongkos.unit}","${pabrikNames.join(', ')}","${formatDate(ongkos.created_at)}"\n`;
+            });
+            
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `ongkos_${new Date().toISOString().split('T')[0]}.csv`;
+            a.click();
+            window.URL.revokeObjectURL(url);
+            
+            showAlert('Data ongkos berhasil diekspor ke CSV!', 'success');
+        }
+
+        function exportOngkosToExcel() {
+            const data = loadOngkosData();
+            if (data.length === 0) {
+                showAlert('Tidak ada data untuk diekspor!', 'error');
+                return;
+            }
+            
+            let html = `
+                <table border="1">
+                    <tr style="background-color: #f0f0f0;">
+                        <th>No</th>
+                        <th>Proses</th>
+                        <th>Jenis</th>
+                        <th>Ongkos</th>
+                        <th>Unit</th>
+                        <th>Pabrik</th>
+                        <th>Tanggal</th>
+                    </tr>
+            `;
+            
+            data.forEach((ongkos, index) => {
+                const pabrikNames = getPabrikNames(ongkos.pabrik_list || []);
+                html += `
+                    <tr>
+                        <td>${index + 1}</td>
+                        <td>${ongkos.proses}</td>
+                        <td>${ongkos.jenis}</td>
+                        <td>${formatCurrency(ongkos.ongkos)}</td>
+                        <td>${ongkos.unit}</td>
+                        <td>${pabrikNames.join(', ')}</td>
+                        <td>${formatDate(ongkos.created_at)}</td>
+                    </tr>
+                `;
+            });
+            
+            html += '</table>';
+            
+            const blob = new Blob([html], { type: 'application/vnd.ms-excel' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `ongkos_${new Date().toISOString().split('T')[0]}.xls`;
+            a.click();
+            window.URL.revokeObjectURL(url);
+            
+            showAlert('Data ongkos berhasil diekspor ke Excel!', 'success');
+        }
+
+        function printOngkosReport() {
+            const data = loadOngkosData();
+            if (data.length === 0) {
+                showAlert('Tidak ada data untuk dicetak!', 'error');
+                return;
+            }
+            
+            let html = `
+                <html>
+                <head>
+                    <title>Laporan Data Ongkos</title>
+                    <style>
+                        body { font-family: Arial, sans-serif; margin: 20px; }
+                        h1 { text-align: center; color: #2c3e50; }
+                        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+                        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+                        th { background-color: #f0f0f0; font-weight: bold; }
+                        .footer { margin-top: 30px; text-align: center; font-size: 12px; color: #666; }
+                    </style>
+                </head>
+                <body>
+                    <h1>📊 LAPORAN DATA ONGKOS</h1>
+                    <p><strong>Tanggal Cetak:</strong> ${new Date().toLocaleDateString('id-ID')}</p>
+                    <p><strong>Total Data:</strong> ${data.length} ongkos</p>
+                    
+                    <table>
+                        <tr>
+                            <th>No</th>
+                            <th>Proses</th>
+                            <th>Jenis</th>
+                            <th>Ongkos</th>
+                            <th>Unit</th>
+                            <th>Pabrik</th>
+                            <th>Tanggal</th>
+                        </tr>
+            `;
+            
+            data.forEach((ongkos, index) => {
+                const pabrikNames = getPabrikNames(ongkos.pabrik_list || []);
+                html += `
+                    <tr>
+                        <td>${index + 1}</td>
+                        <td>${ongkos.proses}</td>
+                        <td>${ongkos.jenis}</td>
+                        <td>${formatCurrency(ongkos.ongkos)}</td>
+                        <td>${ongkos.unit}</td>
+                        <td>${pabrikNames.join(', ')}</td>
+                        <td>${formatDate(ongkos.created_at)}</td>
+                    </tr>
+                `;
+            });
+            
+            html += `
+                    </table>
+                    <div class="footer">
+                        <p>Sistem Upah Tekstil - Dashboard Manajemen</p>
+                    </div>
+                </body>
+                </html>
+            `;
+            
+            const printWindow = window.open('', '_blank');
+            printWindow.document.write(html);
+            printWindow.document.close();
+            printWindow.print();
+            
+            showAlert('Laporan ongkos siap untuk dicetak!', 'success');
+        }
+
+
+// ===== KARYAWAN FUNCTIONS =====
+        // HAPUS semua duplicate functions dan gunakan yang dari sync.js
+
+        function generateNewKaryawanId() {
+            const data = loadKaryawanData();
+            return data.length > 0 ? Math.max(...data.map(k => k.id)) + 1 : 1;
+        }
+
+        function loadKaryawanDropdownOptions() {
+            // Load pabrik options
+            const pabrikData = loadPabrikData();
+            const pabrikSelect = document.getElementById('pabrikKaryawan');
+            const filterPabrikSelect = document.getElementById('filterPabrikKaryawan');
+            
+            let pabrikOptions = '<option value="">Pilih pabrik...</option>';
+            let filterPabrikOptions = '<option value="">Semua Pabrik</option>';
+            
+            pabrikData.forEach(pabrik => {
+                pabrikOptions += `<option value="${pabrik.id}">${pabrik.nama}</option>`;
+                filterPabrikOptions += `<option value="${pabrik.id}">${pabrik.nama}</option>`;
+            });
+            
+            if (pabrikSelect) pabrikSelect.innerHTML = pabrikOptions;
+            if (filterPabrikSelect) filterPabrikSelect.innerHTML = filterPabrikOptions;
+
+            // Load proses options dari ongkos
+            const ongkosData = loadOngkosData();
+            const uniqueProses = [...new Set(ongkosData.map(o => o.proses))];
+            
+            const prosesSelect = document.getElementById('prosesKerja');
+            const filterProsesSelect = document.getElementById('filterProsesKaryawan');
+            
+            let prosesOptions = '<option value="">Pilih proses...</option>';
+            let filterProsesOptions = '<option value="">Semua Proses</option>';
+            
+            uniqueProses.sort().forEach(proses => {
+                prosesOptions += `<option value="${proses}">${proses}</option>`;
+                filterProsesOptions += `<option value="${proses}">${proses}</option>`;
+            });
+            
+            if (prosesSelect) prosesSelect.innerHTML = prosesOptions;
+            if (filterProsesSelect) filterProsesSelect.innerHTML = filterProsesOptions;
+        }
+
+        function tambahKaryawan() {
+            const nomorKaryawan = document.getElementById('nomorKaryawan').value.trim();
+            const namaKaryawan = document.getElementById('namaKaryawan').value.trim();
+            const pabrikKaryawan = document.getElementById('pabrikKaryawan').value;
+            const prosesKerja = document.getElementById('prosesKerja').value;
+            const lokasiKerja = document.getElementById('lokasiKerja').value;
+            const statusKaryawan = document.getElementById('statusKaryawan').value;
+
+            // Validasi dasar
+            if (!nomorKaryawan || !namaKaryawan || !pabrikKaryawan || !prosesKerja || !lokasiKerja || !statusKaryawan) {
+                showAlert('Semua field harus diisi!', 'error');
+                return;
+            }
+
+            const karyawanData = loadKaryawanData();
+
+            // Cek duplikasi kombinasi nomor+proses
+            const isDuplicate = karyawanData.some(k => 
+                k.nomor === nomorKaryawan && 
+                k.proses === prosesKerja
+            );
+
+            if (isDuplicate) {
+                showAlert(`Karyawan dengan nomor ${nomorKaryawan} sudah terdaftar untuk proses ${prosesKerja}!`, 'error');
+                return;
+            }
+
+            // Buat data baru
+            const newKaryawan = {
+                id: generateNewKaryawanId(),
+                nomor: nomorKaryawan,
+                nama: namaKaryawan,
+                pabrik_id: parseInt(pabrikKaryawan),
+                proses: prosesKerja,
+                lokasi: lokasiKerja,
+                status: statusKaryawan,
+                created_at: new Date().toISOString()
+            };
+
+            karyawanData.push(newKaryawan);
+            saveKaryawanData(karyawanData);
+
+            resetFormKaryawan();
+            renderKaryawanList();
+            updateKaryawanStats();
+            showAlert(`Karyawan "${namaKaryawan}" berhasil ditambahkan untuk proses ${prosesKerja}!`, 'success');
+        }
+
+        function updateKaryawan(id) {
+            const nomorKaryawan = document.getElementById('nomorKaryawan').value.trim();
+            const namaKaryawan = document.getElementById('namaKaryawan').value.trim();
+            const pabrikKaryawan = document.getElementById('pabrikKaryawan').value;
+            const prosesKerja = document.getElementById('prosesKerja').value;
+            const lokasiKerja = document.getElementById('lokasiKerja').value;
+            const statusKaryawan = document.getElementById('statusKaryawan').value;
+
+            // Validasi dasar
+            if (!nomorKaryawan || !namaKaryawan || !pabrikKaryawan || !prosesKerja || !lokasiKerja || !statusKaryawan) {
+                showAlert('Semua field harus diisi!', 'error');
+                return;
+            }
+
+            const karyawanData = loadKaryawanData();
+
+            // Cek duplikasi kombinasi nomor+proses (kecuali data yang sedang diedit)
+            const isDuplicate = karyawanData.some(k => 
+                k.id !== id && 
+                k.nomor === nomorKaryawan && 
+                k.proses === prosesKerja
+            );
+
+            if (isDuplicate) {
+                showAlert(`Karyawan dengan nomor ${nomorKaryawan} sudah terdaftar untuk proses ${prosesKerja}!`, 'error');
+                return;
+            }
+
+            // Update data
+            const karyawanIndex = karyawanData.findIndex(k => k.id === id);
+            if (karyawanIndex !== -1) {
+                const oldName = karyawanData[karyawanIndex].nama;
+                const oldProses = karyawanData[karyawanIndex].proses;
+
+                karyawanData[karyawanIndex] = {
+                    ...karyawanData[karyawanIndex],
+                    nomor: nomorKaryawan,
+                    nama: namaKaryawan,
+                    pabrik_id: parseInt(pabrikKaryawan),
+                    proses: prosesKerja,
+                    lokasi: lokasiKerja,
+                    status: statusKaryawan,
+                    updated_at: new Date().toISOString()
+                };
+
+                saveKaryawanData(karyawanData);
+                resetFormKaryawan();
+                resetKaryawanButtons();
+                renderKaryawanList();
+                updateKaryawanStats();
+                showAlert(`Data karyawan "${oldName}" untuk proses ${oldProses} berhasil diupdate!`, 'success');
+            }
+        }
+
+        function resetFormKaryawan() {
+            document.getElementById('nomorKaryawan').value = '';
+            document.getElementById('namaKaryawan').value = '';
+            document.getElementById('pabrikKaryawan').value = '';
+            document.getElementById('prosesKerja').value = '';
+            document.getElementById('lokasiKerja').value = '';
+            document.getElementById('statusKaryawan').value = '';
+        }
+
+        function resetKaryawanButtons() {
+            const allButtons = document.querySelectorAll('button');
+            allButtons.forEach(btn => {
+                if (btn.textContent.includes('Update Karyawan')) {
+                    btn.textContent = '➕ Tambah Karyawan';
+                    btn.setAttribute('onclick', 'tambahKaryawan()');
+                }
+                if (btn.textContent.includes('Batal Edit')) {
+                    btn.remove();
+                }
+            });
+        }
+
+        function cancelEditKaryawan() {
+            resetFormKaryawan();
+            resetKaryawanButtons();
+            showAlert('Edit dibatalkan!', 'info');
+        }
+
+        function getPabrikNameById(pabrikId) {
+            const pabrikData = loadPabrikData();
+            const pabrik = pabrikData.find(p => p.id === pabrikId);
+            return pabrik ? pabrik.nama : `Pabrik ${pabrikId}`;
+        }
+
+        function getFilteredKaryawan() {
+            const data = loadKaryawanData();
+            const pabrikFilter = document.getElementById('filterPabrikKaryawan')?.value;
+            const prosesFilter = document.getElementById('filterProsesKaryawan')?.value;
+            const lokasiFilter = document.getElementById('filterLokasiKaryawan')?.value;
+            const statusFilter = document.getElementById('filterStatusKaryawan')?.value;
+            const searchFilter = document.getElementById('searchKaryawan')?.value.toLowerCase() || '';
+            
+            return data.filter(karyawan => {
+                const matchPabrik = !pabrikFilter || karyawan.pabrik_id === parseInt(pabrikFilter);
+                const matchProses = !prosesFilter || karyawan.proses === prosesFilter;
+                const matchLokasi = !lokasiFilter || karyawan.lokasi === lokasiFilter;
+                const matchStatus = !statusFilter || karyawan.status === statusFilter;
+                const matchSearch = !searchFilter || 
+                    karyawan.nama.toLowerCase().includes(searchFilter) ||
+                    karyawan.nomor.toLowerCase().includes(searchFilter);
+                    
+                return matchPabrik && matchProses && matchLokasi && matchStatus && matchSearch;
+            });
+        }
+
+        function applyKaryawanFilter() {
+            updateKaryawanFilterIndicator();
+            renderKaryawanList();
+        }
+
+        function updateKaryawanFilterIndicator() {
+            const filterPabrik = document.getElementById('filterPabrikKaryawan');
+            const filterProses = document.getElementById('filterProsesKaryawan');
+            const filterLokasi = document.getElementById('filterLokasiKaryawan');
+            const filterStatus = document.getElementById('filterStatusKaryawan');
+            const searchKaryawan = document.getElementById('searchKaryawan');
+            const indicator = document.getElementById('filterIndicatorKaryawan');
+            const filterText = document.getElementById('filterTextKaryawan');
+            
+            if (!filterPabrik || !indicator || !filterText) return;
+            
+            const activeFilters = [];
+            
+            if (filterPabrik.value) {
+                const pabrikName = getPabrikNameById(parseInt(filterPabrik.value));
+                activeFilters.push(`Pabrik: ${pabrikName}`);
+            }
+            if (filterProses.value) activeFilters.push(`Proses: ${filterProses.value}`);
+            if (filterLokasi.value) activeFilters.push(`Lokasi: ${filterLokasi.value}`);
+            if (filterStatus.value) activeFilters.push(`Status: ${filterStatus.value}`);
+            if (searchKaryawan.value) activeFilters.push(`Pencarian: "${searchKaryawan.value}"`);
+            
+            if (activeFilters.length > 0) {
+                filterText.textContent = activeFilters.join(', ');
+                indicator.style.display = 'block';
+            } else {
+                indicator.style.display = 'none';
+            }
+        }
+
+	function renderKaryawanList() {
+            const karyawanData = getFilteredKaryawan();
+            const container = document.getElementById('karyawanList');
+            
+            if (!container) return;
+            
+            if (karyawanData.length === 0) {
+                const hasFilters = document.getElementById('filterStatusKaryawan')?.value || 
+                                  document.getElementById('filterLokasiKaryawan')?.value || 
+                                  document.getElementById('filterProsesKaryawan')?.value || 
+                                  document.getElementById('searchKaryawan')?.value;
+                
+                container.innerHTML = `
+                    <div style="text-align: center; padding: 40px; color: #6c757d;">
+                        <div style="font-size: 48px; margin-bottom: 15px; opacity: 0.5;">
+                            ${hasFilters ? '🔍' : '👥'}
+                        </div>
+                        <p>${hasFilters ? 'Tidak ada data yang sesuai dengan filter' : 'Belum ada data karyawan'}</p>
+                        <small>${hasFilters ? 'Coba ubah atau reset filter Anda' : 'Tambahkan karyawan pertama Anda di atas'}</small>
+                    </div>
+                `;
+                return;
+            }
+            
+            // GROUP BY PROSES
+            const groupedData = {};
+            karyawanData.forEach(karyawan => {
+                if (!groupedData[karyawan.proses]) {
+                    groupedData[karyawan.proses] = [];
+                }
+                groupedData[karyawan.proses].push(karyawan);
+            });
+            
+            let html = '';
+            
+            Object.keys(groupedData).sort().forEach(proses => {
+                const items = groupedData[proses];
+                
+                // Header proses
+                html += `
+                    <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 12px 20px; margin-top: 10px; font-weight: 600; font-size: 16px;">
+                        👥 ${proses} (${items.length} karyawan)
+                    </div>
+                `;
+                
+// Table untuk proses ini - FIXED WIDTH
+                html += `
+                    <table style="width: 100%; border-collapse: collapse; background: white; margin-bottom: 10px; table-layout: fixed;">
+                        <thead>
+                            <tr style="background: #f8f9fa; color: #2c3e50;">
+                                <th style="padding: 10px 15px; text-align: left; font-weight: 600; font-size: 13px; border-bottom: 1px solid #dee2e6; width: 15%;">No. Karyawan</th>
+                                <th style="padding: 10px 15px; text-align: left; font-weight: 600; font-size: 13px; border-bottom: 1px solid #dee2e6; width: 18%;">Nama</th>
+                                <th style="padding: 10px 15px; text-align: left; font-weight: 600; font-size: 13px; border-bottom: 1px solid #dee2e6; width: 22%;">Pabrik</th>
+                                <th style="padding: 10px 15px; text-align: left; font-weight: 600; font-size: 13px; border-bottom: 1px solid #dee2e6; width: 12%;">Lokasi</th>
+                                <th style="padding: 10px 15px; text-align: left; font-weight: 600; font-size: 13px; border-bottom: 1px solid #dee2e6; width: 13%;">Status</th>
+                                <th style="padding: 10px 15px; text-align: left; font-weight: 600; font-size: 13px; border-bottom: 1px solid #dee2e6; width: 20%;">Aksi</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                `;
+                
+                // Items dalam proses
+                items.forEach((karyawan, index) => {
+                    const pabrikNama = getPabrikNameById(karyawan.pabrik_id);
+                    const statusClass = karyawan.status === 'Aktif' ? 'background: #d4edda; color: #155724;' : 'background: #f8d7da; color: #721c24;';
+                    const lokasiClass = karyawan.lokasi === 'Rumah' ? 'background: #e3f2fd; color: #1565c0;' : 'background: #fff3e0; color: #ef6c00;';
+                    
+                    html += `
+<tr style="transition: background-color 0.3s;" onmouseover="this.style.background='#f8f9fa'" onmouseout="this.style.background='white'">
+                            <td style="padding: 12px 15px; border-bottom: 1px solid #f8f9fa; width: 15%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"><span style="font-weight: 600; color: #2c3e50;">${karyawan.nomor}</span></td>
+                            <td style="padding: 12px 15px; border-bottom: 1px solid #f8f9fa; width: 18%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${karyawan.nama}</td>
+                            <td style="padding: 12px 15px; border-bottom: 1px solid #f8f9fa; width: 22%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${pabrikNama}</td>
+                            <td style="padding: 12px 15px; border-bottom: 1px solid #f8f9fa; width: 12%;"><span style="padding: 4px 8px; border-radius: 12px; font-size: 11px; font-weight: 500; ${lokasiClass}">${karyawan.lokasi}</span></td>
+                            <td style="padding: 12px 15px; border-bottom: 1px solid #f8f9fa; width: 13%;"><span style="padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 500; ${statusClass}">${karyawan.status}</span></td>
+                            <td style="padding: 12px 15px; border-bottom: 1px solid #f8f9fa; width: 20%;">
+                                <div style="display: flex; gap: 5px;">
+                                    <button onclick="editKaryawan(${karyawan.id})" style="background: #f39c12; color: white; padding: 6px 12px; border: none; border-radius: 5px; font-size: 12px; cursor: pointer;">✏️ Edit</button>
+                                    <button onclick="hapusKaryawan(${karyawan.id}, '${karyawan.nama}', '${karyawan.nomor}')" style="background: #e74c3c; color: white; padding: 6px 12px; border: none; border-radius: 5px; font-size: 12px; cursor: pointer;">🗑️ Hapus</button>
+                                </div>
+                            </td>
+                        </tr>
+                    `;
+                });
+                
+                html += `
+                        </tbody>
+                    </table>
+                `;
+            });
+            
+            container.innerHTML = html;
+        }
+
+        function updateKaryawanStats() {
+            const data = loadKaryawanData();
+            
+            // Hitung total karyawan unik
+            const uniqueNames = [...new Set(data.map(k => k.nama))];
+            const total = uniqueNames.length;
+
+            // Status dihitung per orang (berdasarkan status terakhir)
+            const statusByName = {};
+            data.forEach(k => {
+                statusByName[k.nama] = k.status;
+            });
+            
+            // Hitung lokasi berdasarkan semua entri/proses
+            const rumah = data.filter(k => k.lokasi === 'Rumah').length;
+            const pabrik = data.filter(k => k.lokasi === 'Pabrik').length;
+
+            // Hitung total per status (unik per orang)
+            const aktif = Object.values(statusByName).filter(s => s === 'Aktif').length;
+            const tidakAktif = Object.values(statusByName).filter(s => s === 'Tidak Aktif').length;
+
+            // Update tampilan
+            if (document.getElementById('totalKaryawan')) document.getElementById('totalKaryawan').textContent = total;
+            if (document.getElementById('karyawanAktif')) document.getElementById('karyawanAktif').textContent = aktif;
+            if (document.getElementById('karyawanTidakAktif')) document.getElementById('karyawanTidakAktif').textContent = tidakAktif;
+            if (document.getElementById('karyawanRumah')) document.getElementById('karyawanRumah').textContent = rumah;
+            if (document.getElementById('karyawanPabrik')) document.getElementById('karyawanPabrik').textContent = pabrik;
+        }
+
+        function editKaryawan(id) {
+            const data = loadKaryawanData();
+            const karyawan = data.find(k => k.id === id);
+            
+            if (!karyawan) {
+                showAlert('Data karyawan tidak ditemukan!', 'error');
+                return;
+            }
+            
+            // Isi form dengan data karyawan
+            document.getElementById('nomorKaryawan').value = karyawan.nomor;
+            document.getElementById('namaKaryawan').value = karyawan.nama;
+            document.getElementById('pabrikKaryawan').value = karyawan.pabrik_id;
+            document.getElementById('prosesKerja').value = karyawan.proses;
+            document.getElementById('lokasiKerja').value = karyawan.lokasi;
+            document.getElementById('statusKaryawan').value = karyawan.status;
+            
+            // Change button to update mode
+            const addButton = document.querySelector('button[onclick="tambahKaryawan()"]');
+            addButton.textContent = '✅ Update Karyawan';
+            addButton.setAttribute('onclick', `updateKaryawan(${id})`);
+            
+            // Add cancel button
+            const cancelButton = document.createElement('button');
+            cancelButton.textContent = '❌ Batal Edit';
+            cancelButton.style.cssText = 'padding: 12px 25px; background: #6c757d; color: white; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; margin-left: 10px; width: 150px; height: 48px;';
+            cancelButton.onclick = () => cancelEditKaryawan();
+            addButton.parentNode.appendChild(cancelButton);
+            
+            // Scroll to form
+            document.getElementById('nomorKaryawan').scrollIntoView({ behavior: 'smooth' });
+            document.getElementById('nomorKaryawan').focus();
+            
+            showAlert(`Data karyawan "${karyawan.nama}" siap untuk diedit. Ubah data lalu klik Update.`, 'info');
+        }
+
+        function hapusKaryawan(id, nama, nomor) {
+            if (confirm(`Apakah Anda yakin ingin menghapus karyawan "${nama}" (${nomor})?`)) {
+                const data = loadKaryawanData();
+                const filteredData = data.filter(k => k.id !== id);
+                
+                saveKaryawanData(filteredData);
+                renderKaryawanList();
+                updateKaryawanStats();
+                showAlert(`Karyawan "${nama}" berhasil dihapus!`, 'success');
+            }
+        }
+
+        function resetFilterKaryawan() {
+            const filterPabrik = document.getElementById('filterPabrikKaryawan');
+            const filterProses = document.getElementById('filterProsesKaryawan');
+            const filterLokasi = document.getElementById('filterLokasiKaryawan');
+            const filterStatus = document.getElementById('filterStatusKaryawan');
+            const searchKaryawan = document.getElementById('searchKaryawan');
+
+            if (filterPabrik) filterPabrik.value = '';
+            if (filterProses) filterProses.value = '';
+            if (filterLokasi) filterLokasi.value = '';
+            if (filterStatus) filterStatus.value = '';
+            if (searchKaryawan) searchKaryawan.value = '';
+            
+            applyKaryawanFilter();
+        }
+
+        function exportKaryawanToExcel() {
+            const data = getFilteredKaryawan();
+            
+            if (data.length === 0) {
+                showAlert('Tidak ada data untuk diekspor!', 'error');
+                return;
+            }
+            
+            if (typeof XLSX === 'undefined') {
+                showAlert('Library Excel tidak tersedia!', 'error');
+                return;
+            }
+            
+            const worksheet = XLSX.utils.json_to_sheet(data.map(k => ({
+                "No. Karyawan": k.nomor,
+                "Nama": k.nama,
+                "Pabrik": getPabrikNameById(k.pabrik_id),
+                "Proses": k.proses,
+                "Lokasi": k.lokasi,
+                "Status": k.status
+            })));
+            
+            const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, "Karyawan");
+            XLSX.writeFile(workbook, "data_karyawan.xlsx");
+            
+            showAlert('Data berhasil diekspor ke Excel!', 'success');
+        }
+
+        function exportKaryawanToCSV() {
+            const data = getFilteredKaryawan();
+            
+            if (data.length === 0) {
+                showAlert('Tidak ada data untuk diekspor!', 'error');
+                return;
+            }
+            
+            const csvContent = [
+                ['No. Karyawan', 'Nama', 'Pabrik', 'Proses', 'Lokasi', 'Status'],
+                ...data.map(k => [
+                    k.nomor,
+                    k.nama,
+                    getPabrikNameById(k.pabrik_id),
+                    k.proses,
+                    k.lokasi,
+                    k.status
+                ])
+            ].map(row => row.join(',')).join('\n');
+            
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            const url = URL.createObjectURL(blob);
+            link.setAttribute('href', url);
+            link.setAttribute('download', 'data_karyawan.csv');
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            
+            showAlert('Data berhasil diekspor ke CSV!', 'success');
+        }
+
+        function printKaryawanReport() {
+            const data = getFilteredKaryawan();
+            
+            if (data.length === 0) {
+                showAlert('Tidak ada data untuk dicetak!', 'error');
+                return;
+            }
+            
+            const printContent = `
+                <html>
+                <head>
+                    <title>Laporan Data Karyawan</title>
+                    <style>
+                        body { font-family: Arial, sans-serif; margin: 20px; }
+                        h1 { text-align: center; color: #2c3e50; margin-bottom: 30px; }
+                        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+                        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+                        th { background-color: #f8f9fa; font-weight: bold; }
+                        .header-info { margin-bottom: 20px; }
+                        .status-aktif { color: #155724; font-weight: bold; }
+                        .status-tidak-aktif { color: #721c24; font-weight: bold; }
+                    </style>
+                </head>
+                <body>
+                    <h1>Laporan Data Karyawan</h1>
+                    <div class="header-info">
+                        <p><strong>Tanggal Cetak:</strong> ${new Date().toLocaleDateString('id-ID')}</p>
+                        <p><strong>Total Karyawan:</strong> ${data.length} orang</p>
+                    </div>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>No. Karyawan</th>
+                                <th>Nama</th>
+                                <th>Pabrik</th>
+                                <th>Proses</th>
+                                <th>Lokasi</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${data.map(k => `
+                                <tr>
+                                    <td>${k.nomor}</td>
+                                    <td>${k.nama}</td>
+                                    <td>${getPabrikNameById(k.pabrik_id)}</td>
+                                    <td>${k.proses}</td>
+                                    <td>${k.lokasi}</td>
+                                    <td class="status-${k.status.toLowerCase().replace(' ', '-')}">${k.status}</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </body>
+                </html>
+            `;
+            
+            const printWindow = window.open('', '_blank');
+            printWindow.document.write(printContent);
+            printWindow.document.close();
+            printWindow.print();
+            
+            showAlert('Laporan siap dicetak!', 'success');
+        }
+
+        function debounceKaryawan(func, wait) {
+            let timeout;
+            return function executedFunction(...args) {
+                const later = () => {
+                    clearTimeout(timeout);
+                    func(...args);
+                };
+                clearTimeout(timeout);
+                timeout = setTimeout(later, wait);
+            };
+        }
+
+
+
+
+        // ===== INITIALIZATION =====
+        document.addEventListener('DOMContentLoaded', async function() {
+            console.log('Dashboard initializing...');
+            showAlert('Dashboard loaded successfully!', 'success');
+            
+            if (typeof initializeSystem === 'function') {
+                await initializeSystem();
+            }
+            
+            if (navigator.onLine && typeof saveToCloud === 'function') {
+                console.log('🔄 Force syncing offline data...');
+                await saveToCloud();
+            }
+            
+            renderPabrikList();
+            
+            document.addEventListener('keypress', function(e) {
+                if (e.target.id === 'namaPabrik' && e.key === 'Enter') {
+                    document.getElementById('alamatPabrik').focus();
+                } else if (e.target.id === 'alamatPabrik' && e.key === 'Enter') {
+                    tambahPabrik();
+                }
+            });
+            
+            const nilaiOngkosInput = document.getElementById('nilaiOngkos');
+            if (nilaiOngkosInput) {
+                nilaiOngkosInput.addEventListener('input', function(e) {
+                    let value = e.target.value.replace(/[^0-9]/g, '');
+                    if (value) {
+                        e.target.value = formatNumber(value);
+                    } else {
+                        e.target.value = '';
+                    }
+                });
+
+                nilaiOngkosInput.addEventListener('paste', function(e) {
+                    setTimeout(() => {
+                        let value = e.target.value.replace(/[^0-9]/g, '');
+                        if (value) {
+                            e.target.value = formatNumber(value);
+                        }
+                    }, 10);
+                });
+            }
+ 
+
+	    // Tambahkan di dalam document.addEventListener('DOMContentLoaded') setelah nilaiOngkosInput:
+
+            // Event listeners untuk filter ongkos
+            const filterProses = document.getElementById('filterProses');
+            const filterPabrikOngkos = document.getElementById('filterPabrikOngkos');
+            const searchOngkos = document.getElementById('searchOngkos');
+            
+            if (filterProses) {
+                filterProses.addEventListener('change', applyOngkosFilter);
+            }
+            if (filterPabrikOngkos) {
+                filterPabrikOngkos.addEventListener('change', applyOngkosFilter);
+            }
+            if (searchOngkos) {
+                searchOngkos.addEventListener('input', applyOngkosFilter);
+            }
+           
+            window.addEventListener('online', async () => {
+                showAlert('Connection restored. Syncing data...', 'success');
+                console.log('🌐 Back online - syncing data...');
+                
+                if (typeof saveToCloud === 'function') {
+                    await saveToCloud();
+                }
+                
+                if (typeof loadFromCloud === 'function') {
+                    await loadFromCloud();
+                }
+                
+                renderPabrikList();
+                loadPabrikCheckboxesOngkos();
+                loadOngkosFilterOptions();
+                renderOngkosList();
+            });
+            
+            window.addEventListener('offline', () => {
+                showAlert('Working offline. Changes will sync when online.', 'info');
+                updateSyncStatus('error', 'Offline');
+            });
+        });
+    </script>
+</body>
+</html>
