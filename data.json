@@ -5,10 +5,16 @@
       "nama": "pabrik 70",
       "alamat": "jalan 70",
       "created_at": "2025-08-01T17:18:10.751Z"
+    },
+    {
+      "id": 7,
+      "nama": "Pabrik 71",
+      "alamat": "Jalan 71",
+      "created_at": "2025-08-01T17:19:01.978Z"
     }
   ],
   "ongkos": [],
   "karyawan": [],
-  "lastUpdated": "2025-08-01T17:18:47.892Z",
+  "lastUpdated": "2025-08-01T17:19:03.979Z",
   "version": "1.0"
 }
