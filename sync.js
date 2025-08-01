@@ -76,6 +76,7 @@ function loadPabrikData() {
 
 function savePabrikData(data) {
     localStorage.setItem(STORAGE_KEYS.pabrik, JSON.stringify(data));
+    localStorage.setItem('tekstil_last_sync_timestamp', new Date().toISOString());
     console.log(`💾 Saved ${data.length} pabrik records locally`);
     queueSync('pabrik', data);
 }
@@ -87,6 +88,7 @@ function loadOngkosData() {
 
 function saveOngkosData(data) {
     localStorage.setItem(STORAGE_KEYS.ongkos, JSON.stringify(data));
+    localStorage.setItem('tekstil_last_sync_timestamp', new Date().toISOString());
     console.log(`💾 Saved ${data.length} ongkos records locally`);
     queueSync('ongkos', data);
 }
@@ -98,6 +100,7 @@ function loadKaryawanData() {
 
 function saveKaryawanData(data) {
     localStorage.setItem(STORAGE_KEYS.karyawan, JSON.stringify(data));
+    localStorage.setItem('tekstil_last_sync_timestamp', new Date().toISOString());
     console.log(`💾 Saved ${data.length} karyawan records locally`);
     queueSync('karyawan', data);
 }
@@ -193,6 +196,7 @@ async function saveToCloud() {
         
         if (success) {
             localStorage.setItem(STORAGE_KEYS.lastSync, new Date().toISOString());
+            localStorage.setItem('tekstil_last_sync_timestamp', allData.lastUpdated);
             updateSyncStatus('', 'Connected');
             console.log('✅ Data synced to cloud successfully');
             return true;
@@ -238,6 +242,7 @@ async function loadFromCloud() {
             }
             
             localStorage.setItem(STORAGE_KEYS.lastSync, new Date().toISOString());
+            localStorage.setItem('tekstil_last_sync_timestamp', cloudData.lastUpdated || new Date().toISOString());
             updateSyncStatus('', 'Connected');
             
             console.log('✅ Data loaded from cloud:', {
@@ -447,13 +452,105 @@ function closeGitHubSetup(success) {
     }
 }
 
-// EVENT LISTENERS
+// AUTO-LOAD FUNCTIONS (NEW!)
+async function autoLoadLatestData() {
+    try {
+        const cloudData = await getGitHubFile('data.json');
+        if (cloudData) {
+            const localTimestamp = localStorage.getItem('tekstil_last_sync_timestamp') || '1970-01-01';
+            const cloudTimestamp = cloudData.lastUpdated || '1970-01-01';
+            
+            // Jika cloud lebih baru, auto-download dan merge
+            if (new Date(cloudTimestamp) > new Date(localTimestamp)) {
+                console.log('📥 Cloud data is newer, auto-downloading...');
+                
+                await smartMerge(cloudData);
+                
+                showAlert('📥 Data terbaru berhasil dimuat!', 'info');
+                return true;
+            }
+        }
+    } catch (error) {
+        console.log('Auto-load failed, continuing with local data');
+    }
+    return false;
+}
+
+async function smartMerge(cloudData) {
+    // Ambil data lokal
+    const localPabrik = loadPabrikData();
+    const localOngkos = loadOngkosData();
+    const localKaryawan = loadKaryawanData();
+    
+    console.log('🔄 Smart merging data...', {
+        localPabrik: localPabrik.length,
+        localOngkos: localOngkos.length,
+        localKaryawan: localKaryawan.length,
+        cloudPabrik: (cloudData.pabrik || []).length,
+        cloudOngkos: (cloudData.ongkos || []).length,
+        cloudKaryawan: (cloudData.karyawan || []).length
+    });
+    
+    // Gabungkan: Cloud data + Local data yang belum ada
+    const mergedPabrik = [...(cloudData.pabrik || [])];
+    const mergedOngkos = [...(cloudData.ongkos || [])];
+    const mergedKaryawan = [...(cloudData.karyawan || [])];
+    
+    // Tambahkan data lokal yang ID-nya belum ada di cloud
+    localPabrik.forEach(local => {
+        if (!mergedPabrik.find(cloud => cloud.id === local.id)) {
+            console.log(`➕ Adding local pabrik: ${local.nama}`);
+            mergedPabrik.push(local);
+        }
+    });
+    
+    localOngkos.forEach(local => {
+        if (!mergedOngkos.find(cloud => cloud.id === local.id)) {
+            console.log(`➕ Adding local ongkos: ${local.proses} - ${local.jenis}`);
+            mergedOngkos.push(local);
+        }
+    });
+    
+    localKaryawan.forEach(local => {
+        if (!mergedKaryawan.find(cloud => cloud.id === local.id)) {
+            console.log(`➕ Adding local karyawan: ${local.nama}`);
+            mergedKaryawan.push(local);
+        }
+    });
+    
+    // Simpan hasil merge
+    localStorage.setItem(STORAGE_KEYS.pabrik, JSON.stringify(mergedPabrik));
+    localStorage.setItem(STORAGE_KEYS.ongkos, JSON.stringify(mergedOngkos));
+    localStorage.setItem(STORAGE_KEYS.karyawan, JSON.stringify(mergedKaryawan));
+    localStorage.setItem('tekstil_last_sync_timestamp', cloudData.lastUpdated);
+    
+    console.log('✅ Smart merge completed:', {
+        finalPabrik: mergedPabrik.length,
+        finalOngkos: mergedOngkos.length,
+        finalKaryawan: mergedKaryawan.length
+    });
+    
+    // Refresh UI
+    setTimeout(() => {
+        if (typeof renderPabrikList === 'function') renderPabrikList();
+        if (typeof renderOngkosList === 'function') renderOngkosList();
+        if (typeof renderKaryawanList === 'function') renderKaryawanList();
+        if (typeof updateKaryawanStats === 'function') updateKaryawanStats();
+        if (typeof updateOngkosStats === 'function') updateOngkosStats();
+    }, 100);
+}
+
+// EVENT LISTENERS - UPDATED!
 window.addEventListener('online', async () => {
     console.log('🌐 Connection restored');
     updateSyncIndicator();
     
     if (isGitHubConfigured()) {
-        await loadFromCloud();
+        // AUTO-LOAD data terbaru sebelum sync
+        console.log('📥 Auto-loading latest data...');
+        await autoLoadLatestData();
+        
+        // Baru sync data lokal
         await saveToCloud();
     }
 });
@@ -528,4 +625,4 @@ function importAllData(fileInput) {
     reader.readAsText(file);
 }
 
-console.log('✅ GitHub sync system loaded');
+console.log('✅ GitHub sync system loaded with auto-load protection');
