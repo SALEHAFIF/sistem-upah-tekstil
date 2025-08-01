@@ -2098,10 +2098,21 @@
                 await initializeSystem();
             }
             
-            if (navigator.onLine && typeof saveToCloud === 'function') {
-                console.log('🔄 Force syncing offline data...');
-                await saveToCloud();
-            }
+			if (navigator.onLine && typeof saveToCloud === 'function') {
+			    console.log('🔄 Checking for offline data to sync...');
+			    
+			    // Hanya sync kalau ada data lokal yang belum di-sync
+			    const hasLocalData = loadPabrikData().length > 0 || 
+			                        loadOngkosData().length > 0 || 
+			                        loadKaryawanData().length > 0;
+			    
+			    if (hasLocalData) {
+			        console.log('📤 Found offline data, syncing...');
+			        await saveToCloud();
+			    } else {
+			        console.log('📭 No offline data to sync');
+			    }
+			}
             
             renderPabrikList();
             
