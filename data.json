@@ -17,10 +17,16 @@
       "nama": "pabrik 200",
       "alamat": "jalan 200",
       "created_at": "2025-08-01T17:25:51.028Z"
+    },
+    {
+      "id": 9,
+      "nama": "pabrik 300",
+      "alamat": "jalan 300",
+      "created_at": "2025-08-01T17:26:23.167Z"
     }
   ],
   "ongkos": [],
   "karyawan": [],
-  "lastUpdated": "2025-08-01T17:26:12.322Z",
+  "lastUpdated": "2025-08-01T17:26:25.176Z",
   "version": "1.0"
 }
