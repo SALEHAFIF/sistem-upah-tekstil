@@ -434,11 +434,13 @@ function saveGitHubSetup() {
     saveGitHubConfig(username, token);
     closeGitHubSetup(true);
     
-    // Immediately sync
-    setTimeout(async () => {
-        await saveToCloud();
-        showAlert('GitHub sync berhasil dikonfigurasi!', 'success');
-    }, 500);
+    // JANGAN auto-sync! Biar initializeSystem() yang handle
+    showAlert('✅ GitHub sync dikonfigurasi! Refresh halaman untuk mulai sync.', 'success');
+    
+    // Refresh halaman biar system reload dengan config baru
+    setTimeout(() => {
+        location.reload();
+    }, 1500);
 }
 
 function closeGitHubSetup(success) {
