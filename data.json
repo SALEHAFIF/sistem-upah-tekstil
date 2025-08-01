@@ -29,10 +29,16 @@
       "nama": "Pabrik 400",
       "alamat": "Jalan 400",
       "created_at": "2025-08-01T17:26:37.434Z"
+    },
+    {
+      "id": 11,
+      "nama": "pabrik 500",
+      "alamat": "jalan 500",
+      "created_at": "2025-08-01T17:27:11.105Z"
     }
   ],
   "ongkos": [],
   "karyawan": [],
-  "lastUpdated": "2025-08-01T17:26:52.803Z",
+  "lastUpdated": "2025-08-01T17:27:13.108Z",
   "version": "1.0"
 }
