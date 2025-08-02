@@ -1,7 +1,7 @@
-// sync.js - GitHub Pages Integration
-console.log('🔄 Loading GitHub sync system...');
+// sync.js - Enhanced GitHub Pages Integration with Safety Features
+console.log('🔄 Loading enhanced GitHub sync system...');
 
-// KONFIGURASI - Ganti dengan info GitHub Anda
+// KONFIGURASI - Enhanced config
 const GITHUB_CONFIG = {
     username: '', // Akan diset nanti
     repo: 'sistem-upah-tekstil',
@@ -18,9 +18,18 @@ const STORAGE_KEYS = {
     lastSync: 'tekstil_last_sync'
 };
 
+// SAFETY CONFIG
+const SAFETY_CONFIG = {
+    maxRetries: 5,
+    retryDelay: 2000,
+    backupBeforeSync: true,
+    autoSyncInterval: 30000, // 30 detik
+    conflictStrategy: 'merge' // 'merge', 'manual', 'latest-wins'
+};
+
 // INITIALIZATION
 async function initializeSystem() {
-    console.log('🚀 Initializing Textile Wage System...');
+    console.log('🚀 Initializing Enhanced Textile Wage System...');
     
     // Load GitHub config
     loadGitHubConfig();
@@ -37,7 +46,7 @@ async function initializeSystem() {
         await loadFromCloud();
     }
     
-    console.log('✅ System initialized successfully');
+    console.log('✅ Enhanced system initialized successfully');
 }
 
 // GITHUB CONFIG MANAGEMENT
@@ -68,7 +77,7 @@ function isGitHubConfigured() {
     return GITHUB_CONFIG.username && GITHUB_CONFIG.token;
 }
 
-// LOCAL STORAGE FUNCTIONS
+// LOCAL STORAGE FUNCTIONS WITH TIMESTAMP TRACKING
 function loadPabrikData() {
     const data = localStorage.getItem(STORAGE_KEYS.pabrik);
     return data ? JSON.parse(data) : [];
@@ -76,7 +85,7 @@ function loadPabrikData() {
 
 function savePabrikData(data) {
     localStorage.setItem(STORAGE_KEYS.pabrik, JSON.stringify(data));
-    localStorage.setItem('tekstil_last_sync_timestamp', new Date().toISOString());
+    localStorage.setItem('tekstil_last_modified', new Date().toISOString());
     console.log(`💾 Saved ${data.length} pabrik records locally`);
     queueSync('pabrik', data);
 }
@@ -88,7 +97,7 @@ function loadOngkosData() {
 
 function saveOngkosData(data) {
     localStorage.setItem(STORAGE_KEYS.ongkos, JSON.stringify(data));
-    localStorage.setItem('tekstil_last_sync_timestamp', new Date().toISOString());
+    localStorage.setItem('tekstil_last_modified', new Date().toISOString());
     console.log(`💾 Saved ${data.length} ongkos records locally`);
     queueSync('ongkos', data);
 }
@@ -100,7 +109,7 @@ function loadKaryawanData() {
 
 function saveKaryawanData(data) {
     localStorage.setItem(STORAGE_KEYS.karyawan, JSON.stringify(data));
-    localStorage.setItem('tekstil_last_sync_timestamp', new Date().toISOString());
+    localStorage.setItem('tekstil_last_modified', new Date().toISOString());
     console.log(`💾 Saved ${data.length} karyawan records locally`);
     queueSync('karyawan', data);
 }
@@ -161,7 +170,7 @@ function queueSync(dataType, data) {
     }, 2000);
 }
 
-// GITHUB API FUNCTIONS
+// ENHANCED GITHUB API FUNCTIONS
 async function saveToCloud() {
     if (!isGitHubConfigured()) {
         console.log('⚠️ GitHub not configured, skipping cloud sync');
@@ -182,6 +191,7 @@ async function saveToCloud() {
             ongkos: loadOngkosData(),
             karyawan: loadKaryawanData(),
             lastUpdated: new Date().toISOString(),
+            deviceId: getDeviceId(),
             version: '1.0'
         };
         
@@ -191,7 +201,7 @@ async function saveToCloud() {
             karyawan: allData.karyawan.length
         });
         
-        // Upload to GitHub
+        // Upload to GitHub with enhanced conflict handling
         const success = await updateGitHubFile('data.json', allData);
         
         if (success) {
@@ -230,16 +240,8 @@ async function loadFromCloud() {
         const cloudData = await getGitHubFile('data.json');
         
         if (cloudData) {
-            // Update local storage
-            if (cloudData.pabrik) {
-                localStorage.setItem(STORAGE_KEYS.pabrik, JSON.stringify(cloudData.pabrik));
-            }
-            if (cloudData.ongkos) {
-                localStorage.setItem(STORAGE_KEYS.ongkos, JSON.stringify(cloudData.ongkos));
-            }
-            if (cloudData.karyawan) {
-                localStorage.setItem(STORAGE_KEYS.karyawan, JSON.stringify(cloudData.karyawan));
-            }
+            // Smart merge instead of overwrite
+            await smartMergeCloudData(cloudData);
             
             localStorage.setItem(STORAGE_KEYS.lastSync, new Date().toISOString());
             localStorage.setItem('tekstil_last_sync_timestamp', cloudData.lastUpdated || new Date().toISOString());
@@ -292,13 +294,20 @@ async function getGitHubFile(filename) {
     }
 }
 
-async function updateGitHubFile(filename, data) {
+// ENHANCED updateGitHubFile with conflict resolution
+async function updateGitHubFile(filename, data, retryCount = 0) {
     const url = `https://api.github.com/repos/${GITHUB_CONFIG.username}/${GITHUB_CONFIG.repo}/contents/${filename}`;
-    const content = btoa(JSON.stringify(data, null, 2));
     
     try {
-        // First, try to get the current file to get its SHA
+        // BACKUP before sync
+        if (SAFETY_CONFIG.backupBeforeSync && retryCount === 0) {
+            createLocalBackup(data);
+        }
+        
+        // Get latest cloud data for merge
         let sha = null;
+        let latestCloudData = null;
+        
         try {
             const currentFile = await fetch(url, {
                 headers: {
@@ -310,15 +319,28 @@ async function updateGitHubFile(filename, data) {
             if (currentFile.ok) {
                 const fileData = await currentFile.json();
                 sha = fileData.sha;
+                latestCloudData = JSON.parse(atob(fileData.content));
+                
+                // SMART MERGE with cloud data if needed
+                if (retryCount === 0 && latestCloudData) {
+                    const mergedData = smartMergeWithValidation(latestCloudData, data);
+                    
+                    if (JSON.stringify(mergedData) !== JSON.stringify(data)) {
+                        console.log('🔄 Smart merging with latest cloud data...');
+                        showAlert('🔄 Menggabungkan dengan data terbaru...', 'info');
+                        return await updateGitHubFile(filename, mergedData, 1);
+                    }
+                }
             }
         } catch (e) {
-            console.log('📝 Creating new file (no existing SHA)');
+            console.log('📝 Creating new file');
         }
         
-        // Create or update the file
+        // Validate data before upload
+        const validatedData = validateDataIntegrity(data);
         const payload = {
-            message: `Update data - ${new Date().toISOString()}`,
-            content: content,
+            message: `Update data - ${new Date().toISOString()} - Device: ${getDeviceId()}`,
+            content: btoa(JSON.stringify(validatedData, null, 2)),
             branch: GITHUB_CONFIG.branch
         };
         
@@ -338,16 +360,382 @@ async function updateGitHubFile(filename, data) {
         
         if (!response.ok) {
             const errorData = await response.json();
+            
+            // RETRY for 409 conflict with exponential backoff
+            if (response.status === 409 && retryCount < SAFETY_CONFIG.maxRetries) {
+                const delay = SAFETY_CONFIG.retryDelay * Math.pow(2, retryCount);
+                console.log(`⚠️ Conflict ${retryCount + 1}/${SAFETY_CONFIG.maxRetries}, retry in ${delay}ms...`);
+                showAlert(`⚠️ Conflict detected, retrying... (${retryCount + 1}/${SAFETY_CONFIG.maxRetries})`, 'warning');
+                
+                await new Promise(resolve => setTimeout(resolve, delay));
+                return await updateGitHubFile(filename, data, retryCount + 1);
+            }
+            
+            // FALLBACK: Save to backup if max retries reached
+            if (retryCount >= SAFETY_CONFIG.maxRetries) {
+                console.error('❌ Max retries reached, saving to backup');
+                saveToFailureBackup(data);
+                showAlert('❌ Sync gagal, data disimpan ke backup lokal', 'error');
+                return false;
+            }
+            
             throw new Error(`GitHub API error: ${response.status} - ${errorData.message}`);
         }
         
-        console.log('✅ File updated on GitHub successfully');
+        console.log('✅ File updated successfully');
+        showAlert('✅ Data berhasil disinkronkan!', 'success');
         return true;
         
     } catch (error) {
         console.error('❌ Error updating GitHub file:', error);
-        throw error;
+        
+        if (retryCount < SAFETY_CONFIG.maxRetries) {
+            return await updateGitHubFile(filename, data, retryCount + 1);
+        } else {
+            saveToFailureBackup(data);
+            showAlert('❌ Sync gagal, data disimpan ke backup', 'error');
+            throw error;
+        }
     }
+}
+
+// SMART MERGE FUNCTIONS
+function smartMergeWithValidation(cloudData, localData) {
+    console.log('🔄 Smart merging with validation...', {
+        cloud: {
+            pabrik: (cloudData.pabrik || []).length,
+            ongkos: (cloudData.ongkos || []).length,
+            karyawan: (cloudData.karyawan || []).length,
+            lastUpdated: cloudData.lastUpdated
+        },
+        local: {
+            pabrik: (localData.pabrik || []).length,
+            ongkos: (localData.ongkos || []).length,
+            karyawan: (localData.karyawan || []).length,
+            lastUpdated: localData.lastUpdated
+        }
+    });
+    
+    // Merge dengan ID + timestamp strategy
+    const mergedPabrik = mergeByIdAndTimestamp(cloudData.pabrik || [], localData.pabrik || []);
+    const mergedOngkos = mergeByIdAndTimestamp(cloudData.ongkos || [], localData.ongkos || []);
+    const mergedKaryawan = mergeByIdAndTimestamp(cloudData.karyawan || [], localData.karyawan || []);
+    
+    return {
+        pabrik: mergedPabrik,
+        ongkos: mergedOngkos,
+        karyawan: mergedKaryawan,
+        lastUpdated: new Date().toISOString(),
+        mergedAt: new Date().toISOString(),
+        deviceId: getDeviceId(),
+        version: '1.0'
+    };
+}
+
+// MERGE by ID + Timestamp (the magic!)
+function mergeByIdAndTimestamp(cloudArray, localArray) {
+    const allItems = [...cloudArray, ...localArray];
+    const itemMap = new Map();
+    
+    // Group by ID
+    allItems.forEach(item => {
+        if (!item.id) {
+            console.warn('⚠️ Item without ID found:', item);
+            return;
+        }
+        
+        const id = item.id;
+        if (!itemMap.has(id)) {
+            itemMap.set(id, []);
+        }
+        itemMap.get(id).push(item);
+    });
+    
+    // Untuk setiap ID, ambil yang timestamp terbaru
+    const result = [];
+    itemMap.forEach((items, id) => {
+        if (items.length === 1) {
+            result.push(items[0]);
+        } else {
+            // Multiple items with same ID, ambil yang terbaru
+            const latest = items.reduce((latest, current) => {
+                const latestTime = new Date(latest.updated_at || latest.created_at || '1970-01-01');
+                const currentTime = new Date(current.updated_at || current.created_at || '1970-01-01');
+                return currentTime > latestTime ? current : latest;
+            });
+            
+            console.log(`🔄 ID ${id}: Found ${items.length} versions, using latest from ${latest.updated_at || latest.created_at}`);
+            result.push(latest);
+        }
+    });
+    
+    return result.sort((a, b) => a.id - b.id); // Sort by ID
+}
+
+async function smartMergeCloudData(cloudData) {
+    // Ambil data lokal
+    const localPabrik = loadPabrikData();
+    const localOngkos = loadOngkosData();
+    const localKaryawan = loadKaryawanData();
+    
+    console.log('🔄 Smart merging cloud data...', {
+        localPabrik: localPabrik.length,
+        localOngkos: localOngkos.length,
+        localKaryawan: localKaryawan.length,
+        cloudPabrik: (cloudData.pabrik || []).length,
+        cloudOngkos: (cloudData.ongkos || []).length,
+        cloudKaryawan: (cloudData.karyawan || []).length
+    });
+    
+    // Merge dengan ID + timestamp
+    const mergedPabrik = mergeByIdAndTimestamp(cloudData.pabrik || [], localPabrik);
+    const mergedOngkos = mergeByIdAndTimestamp(cloudData.ongkos || [], localOngkos);
+    const mergedKaryawan = mergeByIdAndTimestamp(cloudData.karyawan || [], localKaryawan);
+    
+    // Simpan hasil merge
+    localStorage.setItem(STORAGE_KEYS.pabrik, JSON.stringify(mergedPabrik));
+    localStorage.setItem(STORAGE_KEYS.ongkos, JSON.stringify(mergedOngkos));
+    localStorage.setItem(STORAGE_KEYS.karyawan, JSON.stringify(mergedKaryawan));
+    localStorage.setItem('tekstil_last_sync_timestamp', cloudData.lastUpdated);
+    
+    console.log('✅ Smart merge completed:', {
+        finalPabrik: mergedPabrik.length,
+        finalOngkos: mergedOngkos.length,
+        finalKaryawan: mergedKaryawan.length
+    });
+    
+    // Refresh UI
+    setTimeout(() => {
+        if (typeof renderPabrikList === 'function') renderPabrikList();
+        if (typeof renderOngkosList === 'function') renderOngkosList();
+        if (typeof renderKaryawanList === 'function') renderKaryawanList();
+        if (typeof updateKaryawanStats === 'function') updateKaryawanStats();
+        if (typeof updateOngkosStats === 'function') updateOngkosStats();
+    }, 100);
+}
+
+// VALIDATION functions
+function validateDataIntegrity(data) {
+    const validated = {
+        pabrik: validateArray(data.pabrik || [], 'pabrik'),
+        ongkos: validateArray(data.ongkos || [], 'ongkos'),
+        karyawan: validateArray(data.karyawan || [], 'karyawan'),
+        lastUpdated: data.lastUpdated || new Date().toISOString(),
+        deviceId: data.deviceId || getDeviceId(),
+        version: data.version || '1.0'
+    };
+    
+    console.log('✅ Data validation completed:', {
+        pabrik: validated.pabrik.length,
+        ongkos: validated.ongkos.length,
+        karyawan: validated.karyawan.length
+    });
+    
+    return validated;
+}
+
+function validateArray(array, type) {
+    return array.filter(item => {
+        // Basic validation
+        if (!item.id) {
+            console.warn(`⚠️ ${type} without ID removed:`, item);
+            return false;
+        }
+        
+        // Type-specific validation
+        if (type === 'pabrik' && !item.nama) {
+            console.warn(`⚠️ Pabrik without nama removed:`, item);
+            return false;
+        }
+        
+        if (type === 'ongkos' && (!item.proses || !item.jenis)) {
+            console.warn(`⚠️ Ongkos without proses/jenis removed:`, item);
+            return false;
+        }
+        
+        if (type === 'karyawan' && (!item.nama || !item.nomor)) {
+            console.warn(`⚠️ Karyawan without nama/nomor removed:`, item);
+            return false;
+        }
+        
+        return true;
+    });
+}
+
+// BACKUP functions
+function createLocalBackup(data) {
+    const backup = {
+        data: data,
+        timestamp: new Date().toISOString(),
+        deviceId: getDeviceId()
+    };
+    
+    const backups = JSON.parse(localStorage.getItem('tekstil_backups') || '[]');
+    backups.push(backup);
+    
+    // Keep only last 5 backups
+    if (backups.length > 5) {
+        backups.splice(0, backups.length - 5);
+    }
+    
+    localStorage.setItem('tekstil_backups', JSON.stringify(backups));
+    console.log('💾 Local backup created');
+}
+
+function saveToFailureBackup(data) {
+    const failureBackup = {
+        data: data,
+        timestamp: new Date().toISOString(),
+        deviceId: getDeviceId(),
+        type: 'sync_failure'
+    };
+    
+    localStorage.setItem('tekstil_failure_backup', JSON.stringify(failureBackup));
+    console.log('🆘 Failure backup created');
+}
+
+function getDeviceId() {
+    let deviceId = localStorage.getItem('tekstil_device_id');
+    if (!deviceId) {
+        deviceId = 'device_' + Math.random().toString(36).substr(2, 9);
+        localStorage.setItem('tekstil_device_id', deviceId);
+    }
+    return deviceId;
+}
+
+// MANUAL CONTROLS for user
+function forceLoadLatestData() {
+    if (!isGitHubConfigured()) {
+        showAlert('❌ GitHub belum dikonfigurasi!', 'error');
+        return;
+    }
+    
+    updateSyncStatus('syncing', 'Loading...');
+    showAlert('🔄 Memuat data terbaru dari cloud...', 'info');
+    
+    loadFromCloud().then(success => {
+        if (success) {
+            // Refresh UI
+            setTimeout(() => {
+                if (typeof renderPabrikList === 'function') renderPabrikList();
+                if (typeof renderOngkosList === 'function') renderOngkosList();
+                if (typeof renderKaryawanList === 'function') renderKaryawanList();
+                location.reload(); // Force refresh semua
+            }, 500);
+        }
+    });
+}
+
+function forceSyncOfflineData() {
+    if (!isGitHubConfigured()) {
+        showAlert('❌ GitHub belum dikonfigurasi!', 'error');
+        return;
+    }
+    
+    const hasLocalData = loadPabrikData().length > 0 || 
+                        loadOngkosData().length > 0 || 
+                        loadKaryawanData().length > 0;
+    
+    if (!hasLocalData) {
+        showAlert('ℹ️ Tidak ada data offline untuk disinkronkan', 'info');
+        return;
+    }
+    
+    updateSyncStatus('syncing', 'Syncing...');
+    showAlert('🔄 Menyinkronkan data offline...', 'info');
+    
+    saveToCloud().then(success => {
+        if (success) {
+            showAlert('✅ Data offline berhasil disinkronkan!', 'success');
+        }
+    });
+}
+
+function toggleAutoSync() {
+    const current = localStorage.getItem('tekstil_auto_sync') !== 'false';
+    const newState = !current;
+    
+    localStorage.setItem('tekstil_auto_sync', newState.toString());
+    
+    if (newState) {
+        startAutoSync();
+        showAlert('✅ Auto-sync diaktifkan (30 detik)', 'success');
+    } else {
+        stopAutoSync();
+        showAlert('⏸️ Auto-sync dinonaktifkan', 'info');
+    }
+    
+    updateAutoSyncUI();
+}
+
+// AUTO SYNC dengan interval
+let autoSyncInterval = null;
+
+function startAutoSync() {
+    if (autoSyncInterval) return;
+    
+    autoSyncInterval = setInterval(async () => {
+        if (navigator.onLine && isGitHubConfigured()) {
+            console.log('🤖 Auto-sync running...');
+            await autoLoadLatestData();
+            
+            const hasLocalChanges = checkForLocalChanges();
+            if (hasLocalChanges) {
+                await saveToCloud();
+            }
+        }
+    }, SAFETY_CONFIG.autoSyncInterval);
+    
+    console.log('🤖 Auto-sync started (30s interval)');
+}
+
+function stopAutoSync() {
+    if (autoSyncInterval) {
+        clearInterval(autoSyncInterval);
+        autoSyncInterval = null;
+        console.log('🤖 Auto-sync stopped');
+    }
+}
+
+function checkForLocalChanges() {
+    const lastSync = localStorage.getItem('tekstil_last_sync_timestamp');
+    const lastModified = localStorage.getItem('tekstil_last_modified');
+    
+    return !lastSync || !lastModified || new Date(lastModified) > new Date(lastSync);
+}
+
+function updateAutoSyncUI() {
+    const autoSyncEnabled = localStorage.getItem('tekstil_auto_sync') !== 'false';
+    const button = document.getElementById('autoSyncToggle');
+    
+    if (button) {
+        button.textContent = autoSyncEnabled ? '⏸️ Auto-Sync ON' : '▶️ Auto-Sync OFF';
+        button.style.background = autoSyncEnabled ? '#28a745' : '#6c757d';
+    }
+}
+
+// AUTO-LOAD FUNCTIONS (Enhanced)
+async function autoLoadLatestData() {
+    try {
+        const cloudData = await getGitHubFile('data.json');
+        if (cloudData) {
+            const localTimestamp = localStorage.getItem('tekstil_last_sync_timestamp') || '1970-01-01';
+            const cloudTimestamp = cloudData.lastUpdated || '1970-01-01';
+            
+            // Jika cloud lebih baru, auto-download dan merge
+            if (new Date(cloudTimestamp) > new Date(localTimestamp)) {
+                console.log('📥 Cloud data is newer, auto-downloading...');
+                
+                await smartMergeCloudData(cloudData);
+                
+                showAlert('📥 Data terbaru berhasil dimuat!', 'info');
+                return true;
+            }
+        }
+    } catch (error) {
+        console.log('Auto-load failed, continuing with local data');
+    }
+    return false;
 }
 
 // UI FUNCTIONS
@@ -397,234 +785,164 @@ function showGitHubSetup() {
     modal.innerHTML = `
         <div style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 10000; display: flex; align-items: center; justify-content: center;">
             <div style="background: white; padding: 30px; border-radius: 10px; max-width: 500px; width: 90%;">
-                <h2 style="margin-bottom: 20px; color: #2c3e50;">🔧 Setup GitHub Sync</h2>
-                <p style="margin-bottom: 20px; color: #666;">Untuk mengaktifkan sinkronisasi otomatis, masukkan informasi GitHub Anda:</p>
+                <h2 style="margin-bottom: 20px; color: #2c3e50;">🔧 Setup Enhanced GitHub Sync</h2>
                 
+                <div style="background: #fff3cd; border: 1px solid #ffeaa7; color: #856404; padding: 15px; border-radius: 8px; margin-bottom: 20px; font-size: 14px;">
+                    <strong>✨ NEW FEATURES:</strong><br>
+                    • Smart conflict resolution<br>
+                    • Auto-backup & recovery<br>
+                    • Manual sync controls<br>
+                    • Enhanced data validation
+                </div>
+                
+                <p style="margin-bottom: 20px; color: #666;">Masukkan informasi GitHub Anda:</p>
                 <div style="margin-bottom: 15px;">
-                    <label style="display: block; margin-bottom: 5px; font-weight: 500;">Username GitHub:</label>
-                    <input type="text" id="githubUsername" placeholder="contoh: johndoe" style="width: 100%; padding: 10px; border: 2px solid #e9ecef; border-radius: 5px;">
-                </div>
-                
-                <div style="margin-bottom: 20px;">
-                    <label style="display: block; margin-bottom: 5px; font-weight: 500;">Personal Access Token:</label>
-                    <input type="password" id="githubToken" placeholder="ghp_xxxxxxxxxxxx" style="width: 100%; padding: 10px; border: 2px solid #e9ecef; border-radius: 5px;">
-                    <small style="color: #666;">Token dengan akses 'repo' diperlukan</small>
-                </div>
-                
-                <div style="display: flex; gap: 10px; justify-content: end;">
-                    <button onclick="closeGitHubSetup(false)" style="padding: 10px 20px; border: 1px solid #ddd; background: white; border-radius: 5px; cursor: pointer;">Batal</button>
-                    <button onclick="saveGitHubSetup()" style="padding: 10px 20px; background: #667eea; color: white; border: none; border-radius: 5px; cursor: pointer;">Simpan</button>
-                </div>
-            </div>
-        </div>
-    `;
-    modal.id = 'githubSetupModal';
-    document.body.appendChild(modal);
+                   <label style="display: block; margin-bottom: 5px; font-weight: 500;">Username GitHub:</label>
+                   <input type="text" id="githubUsername" placeholder="contoh: johndoe" style="width: 100%; padding: 10px; border: 2px solid #e9ecef; border-radius: 5px;">
+               </div>
+               
+               <div style="margin-bottom: 20px;">
+                   <label style="display: block; margin-bottom: 5px; font-weight: 500;">Personal Access Token:</label>
+                   <input type="password" id="githubToken" placeholder="ghp_xxxxxxxxxxxx" style="width: 100%; padding: 10px; border: 2px solid #e9ecef; border-radius: 5px;">
+                   <small style="color: #666;">Token dengan akses 'repo' diperlukan</small>
+               </div>
+               
+               <div style="display: flex; gap: 10px; justify-content: end;">
+                   <button onclick="closeGitHubSetup(false)" style="padding: 10px 20px; border: 1px solid #ddd; background: white; border-radius: 5px; cursor: pointer;">Batal</button>
+                   <button onclick="saveGitHubSetup()" style="padding: 10px 20px; background: #667eea; color: white; border: none; border-radius: 5px; cursor: pointer;">Setup Enhanced Sync</button>
+               </div>
+           </div>
+       </div>
+   `;
+   modal.id = 'githubSetupModal';
+   document.body.appendChild(modal);
 }
 
 function saveGitHubSetup() {
-    const username = document.getElementById('githubUsername').value.trim();
-    const token = document.getElementById('githubToken').value.trim();
-    
-    if (!username || !token) {
-        alert('Username dan token harus diisi!');
-        return;
-    }
-    
-    saveGitHubConfig(username, token);
-    closeGitHubSetup(true);
-    
-    // JANGAN auto-sync! Biar initializeSystem() yang handle
-    showAlert('✅ GitHub sync dikonfigurasi! Refresh halaman untuk mulai sync.', 'success');
-    
-    // Refresh halaman biar system reload dengan config baru
-    setTimeout(() => {
-        location.reload();
-    }, 1500);
+   const username = document.getElementById('githubUsername').value.trim();
+   const token = document.getElementById('githubToken').value.trim();
+   
+   if (!username || !token) {
+       alert('Username dan token harus diisi!');
+       return;
+   }
+   
+   saveGitHubConfig(username, token);
+   closeGitHubSetup(true);
+   
+   // JANGAN auto-sync! Biar initializeSystem() yang handle
+   showAlert('✅ Enhanced GitHub sync dikonfigurasi! Refresh halaman untuk mulai.', 'success');
+   
+   // Refresh halaman biar system reload dengan config baru
+   setTimeout(() => {
+       location.reload();
+   }, 1500);
 }
 
 function closeGitHubSetup(success) {
-    const modal = document.getElementById('githubSetupModal');
-    if (modal) {
-        modal.remove();
-    }
-    
-    if (success) {
-        updateSyncIndicator();
-    }
+   const modal = document.getElementById('githubSetupModal');
+   if (modal) {
+       modal.remove();
+   }
+   
+   if (success) {
+       updateSyncIndicator();
+   }
 }
 
-// AUTO-LOAD FUNCTIONS (NEW!)
-async function autoLoadLatestData() {
-    try {
-        const cloudData = await getGitHubFile('data.json');
-        if (cloudData) {
-            const localTimestamp = localStorage.getItem('tekstil_last_sync_timestamp') || '1970-01-01';
-            const cloudTimestamp = cloudData.lastUpdated || '1970-01-01';
-            
-            // Jika cloud lebih baru, auto-download dan merge
-            if (new Date(cloudTimestamp) > new Date(localTimestamp)) {
-                console.log('📥 Cloud data is newer, auto-downloading...');
-                
-                await smartMerge(cloudData);
-                
-                showAlert('📥 Data terbaru berhasil dimuat!', 'info');
-                return true;
-            }
-        }
-    } catch (error) {
-        console.log('Auto-load failed, continuing with local data');
-    }
-    return false;
-}
-
-async function smartMerge(cloudData) {
-    // Ambil data lokal
-    const localPabrik = loadPabrikData();
-    const localOngkos = loadOngkosData();
-    const localKaryawan = loadKaryawanData();
-    
-    console.log('🔄 Smart merging data...', {
-        localPabrik: localPabrik.length,
-        localOngkos: localOngkos.length,
-        localKaryawan: localKaryawan.length,
-        cloudPabrik: (cloudData.pabrik || []).length,
-        cloudOngkos: (cloudData.ongkos || []).length,
-        cloudKaryawan: (cloudData.karyawan || []).length
-    });
-    
-    // Gabungkan: Cloud data + Local data yang belum ada
-    const mergedPabrik = [...(cloudData.pabrik || [])];
-    const mergedOngkos = [...(cloudData.ongkos || [])];
-    const mergedKaryawan = [...(cloudData.karyawan || [])];
-    
-    // Tambahkan data lokal yang ID-nya belum ada di cloud
-    localPabrik.forEach(local => {
-        if (!mergedPabrik.find(cloud => cloud.id === local.id)) {
-            console.log(`➕ Adding local pabrik: ${local.nama}`);
-            mergedPabrik.push(local);
-        }
-    });
-    
-    localOngkos.forEach(local => {
-        if (!mergedOngkos.find(cloud => cloud.id === local.id)) {
-            console.log(`➕ Adding local ongkos: ${local.proses} - ${local.jenis}`);
-            mergedOngkos.push(local);
-        }
-    });
-    
-    localKaryawan.forEach(local => {
-        if (!mergedKaryawan.find(cloud => cloud.id === local.id)) {
-            console.log(`➕ Adding local karyawan: ${local.nama}`);
-            mergedKaryawan.push(local);
-        }
-    });
-    
-    // Simpan hasil merge
-    localStorage.setItem(STORAGE_KEYS.pabrik, JSON.stringify(mergedPabrik));
-    localStorage.setItem(STORAGE_KEYS.ongkos, JSON.stringify(mergedOngkos));
-    localStorage.setItem(STORAGE_KEYS.karyawan, JSON.stringify(mergedKaryawan));
-    localStorage.setItem('tekstil_last_sync_timestamp', cloudData.lastUpdated);
-    
-    console.log('✅ Smart merge completed:', {
-        finalPabrik: mergedPabrik.length,
-        finalOngkos: mergedOngkos.length,
-        finalKaryawan: mergedKaryawan.length
-    });
-    
-    // Refresh UI
-    setTimeout(() => {
-        if (typeof renderPabrikList === 'function') renderPabrikList();
-        if (typeof renderOngkosList === 'function') renderOngkosList();
-        if (typeof renderKaryawanList === 'function') renderKaryawanList();
-        if (typeof updateKaryawanStats === 'function') updateKaryawanStats();
-        if (typeof updateOngkosStats === 'function') updateOngkosStats();
-    }, 100);
-}
-
-// EVENT LISTENERS - UPDATED!
+// EVENT LISTENERS - ENHANCED!
 window.addEventListener('online', async () => {
-    console.log('🌐 Connection restored');
-    updateSyncIndicator();
-    
-    if (isGitHubConfigured()) {
-        // AUTO-LOAD data terbaru sebelum sync
-        console.log('📥 Auto-loading latest data...');
-        await autoLoadLatestData();
-        
-        // Baru sync data lokal
-        await saveToCloud();
-    }
+   console.log('🌐 Connection restored');
+   updateSyncIndicator();
+   
+   if (isGitHubConfigured()) {
+       // AUTO-LOAD data terbaru sebelum sync
+       console.log('📥 Auto-loading latest data...');
+       await autoLoadLatestData();
+       
+       // Baru sync data lokal
+       await saveToCloud();
+   }
 });
 
 window.addEventListener('offline', () => {
-    console.log('📴 Connection lost');
-    updateSyncStatus('error', 'Offline');
+   console.log('📴 Connection lost');
+   updateSyncStatus('error', 'Offline');
 });
 
 // Add setup button to sync status
 document.addEventListener('DOMContentLoaded', () => {
-    const syncStatus = document.querySelector('.sync-status');
-    if (syncStatus && !isGitHubConfigured()) {
-        syncStatus.style.cursor = 'pointer';
-        syncStatus.title = 'Klik untuk setup GitHub sync';
-        syncStatus.addEventListener('click', showGitHubSetup);
-    }
+   const syncStatus = document.querySelector('.sync-status');
+   if (syncStatus && !isGitHubConfigured()) {
+       syncStatus.style.cursor = 'pointer';
+       syncStatus.title = 'Klik untuk setup GitHub sync';
+       syncStatus.addEventListener('click', showGitHubSetup);
+   }
+   
+   // Initialize auto-sync
+   const autoSyncEnabled = localStorage.getItem('tekstil_auto_sync') !== 'false';
+   if (autoSyncEnabled && isGitHubConfigured()) {
+       setTimeout(() => {
+           startAutoSync();
+       }, 5000); // Start after 5 seconds
+   }
+   updateAutoSyncUI();
 });
 
 // EXPORT/IMPORT FUNCTIONS
 function exportAllData() {
-    const allData = {
-        pabrik: loadPabrikData(),
-        ongkos: loadOngkosData(),
-        karyawan: loadKaryawanData(),
-        exportedAt: new Date().toISOString(),
-        version: '1.0'
-    };
-    
-    const dataStr = JSON.stringify(allData, null, 2);
-    const dataBlob = new Blob([dataStr], { type: 'application/json' });
-    
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(dataBlob);
-    link.download = `tekstil_backup_${new Date().toISOString().split('T')[0]}.json`;
-    link.click();
-    
-    showAlert('Data berhasil diekspor!', 'success');
+   const allData = {
+       pabrik: loadPabrikData(),
+       ongkos: loadOngkosData(),
+       karyawan: loadKaryawanData(),
+       exportedAt: new Date().toISOString(),
+       deviceId: getDeviceId(),
+       version: '1.0'
+   };
+   
+   const dataStr = JSON.stringify(allData, null, 2);
+   const dataBlob = new Blob([dataStr], { type: 'application/json' });
+   
+   const link = document.createElement('a');
+   link.href = URL.createObjectURL(dataBlob);
+   link.download = `tekstil_backup_${new Date().toISOString().split('T')[0]}.json`;
+   link.click();
+   
+   showAlert('Data berhasil diekspor!', 'success');
 }
 
 function importAllData(fileInput) {
-    const file = fileInput.files[0];
-    if (!file) return;
-    
-    const reader = new FileReader();
-    reader.onload = function(e) {
-        try {
-            const data = JSON.parse(e.target.result);
-            
-            if (data.pabrik) {
-                savePabrikData(data.pabrik);
-            }
-            if (data.ongkos) {
-                saveOngkosData(data.ongkos);
-            }
-            if (data.karyawan) {
-                saveKaryawanData(data.karyawan);
-            }
-            
-            showAlert('Data berhasil diimpor! Refresh halaman untuk melihat perubahan.', 'success');
-            
-            // Refresh UI
-            setTimeout(() => {
-                location.reload();
-            }, 2000);
-            
-        } catch (error) {
-            console.error('Import error:', error);
-            showAlert('File tidak valid!', 'error');
-        }
-    };
-    reader.readAsText(file);
+   const file = fileInput.files[0];
+   if (!file) return;
+   
+   const reader = new FileReader();
+   reader.onload = function(e) {
+       try {
+           const data = JSON.parse(e.target.result);
+           
+           if (data.pabrik) {
+               savePabrikData(data.pabrik);
+           }
+           if (data.ongkos) {
+               saveOngkosData(data.ongkos);
+           }
+           if (data.karyawan) {
+               saveKaryawanData(data.karyawan);
+           }
+           
+           showAlert('Data berhasil diimpor! Refresh halaman untuk melihat perubahan.', 'success');
+           
+           // Refresh UI
+           setTimeout(() => {
+               location.reload();
+           }, 2000);
+           
+       } catch (error) {
+           console.error('Import error:', error);
+           showAlert('File tidak valid!', 'error');
+       }
+   };
+   reader.readAsText(file);
 }
 
-console.log('✅ GitHub sync system loaded with auto-load protection');
+console.log('✅ Enhanced GitHub sync system loaded with safety features');
