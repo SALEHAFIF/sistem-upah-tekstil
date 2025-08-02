@@ -53,6 +53,7 @@ async function initializeSystem() {
 }
 
 // SMART CLOUD CHECK
+// SMART CLOUD CHECK
 async function smartCloudCheck() {
     try {
         updateSyncStatus('syncing', 'Checking updates...');
@@ -79,15 +80,42 @@ async function smartCloudCheck() {
         });
         
         if (cloudTime > localTime) {
-            // CLOUD LEBIH BARU → Ada update dari device lain!
-            const cloudTotal = (cloudData.pabrik?.length || 0) + 
-                              (cloudData.ongkos?.length || 0) + 
-                              (cloudData.karyawan?.length || 0);
+            // CLOUD LEBIH BARU → Check data breakdown
+            const localBreakdown = {
+                pabrik: loadPabrikData().length,
+                ongkos: loadOngkosData().length,
+                karyawan: loadKaryawanData().length
+            };
             
-            const localTotal = getTotalLocalRecords();
+            const cloudBreakdown = {
+                pabrik: (cloudData.pabrik?.length || 0),
+                ongkos: (cloudData.ongkos?.length || 0),
+                karyawan: (cloudData.karyawan?.length || 0)
+            };
+            
+            const cloudTotal = cloudBreakdown.pabrik + cloudBreakdown.ongkos + cloudBreakdown.karyawan;
+            const localTotal = localBreakdown.pabrik + localBreakdown.ongkos + localBreakdown.karyawan;
             const hasLocalChanges = checkDataStatus() === 'dirty';
             
-            console.log('🔄 Cloud is newer:', { cloudTotal, localTotal, hasLocalChanges });
+            console.log('🔄 Cloud is newer:', { 
+                cloudBreakdown, 
+                localBreakdown, 
+                hasLocalChanges 
+            });
+            
+            // Check if data is actually different (not just timestamp)
+            const isDataIdentical = 
+                localBreakdown.pabrik === cloudBreakdown.pabrik &&
+                localBreakdown.ongkos === cloudBreakdown.ongkos &&
+                localBreakdown.karyawan === cloudBreakdown.karyawan;
+            
+            if (isDataIdentical && !hasLocalChanges) {
+                // Same data, just update timestamp
+                console.log('📊 Data identical, updating timestamp only');
+                localStorage.setItem('tekstil_last_sync_timestamp', cloudData.lastUpdated);
+                autoLoadLocalData();
+                return;
+            }
             
             if (hasLocalChanges) {
                 // ADA LOCAL CHANGES + CLOUD UPDATE → CONFLICT!
@@ -113,6 +141,19 @@ async function smartCloudCheck() {
 }
 
 function showUpdateConflictDialog(cloudData, cloudTotal, localTotal) {
+    // CALCULATE BREAKDOWN
+    const cloudBreakdown = {
+        pabrik: (cloudData.pabrik?.length || 0),
+        ongkos: (cloudData.ongkos?.length || 0),
+        karyawan: (cloudData.karyawan?.length || 0)
+    };
+    
+    const localBreakdown = {
+        pabrik: loadPabrikData().length,
+        ongkos: loadOngkosData().length,
+        karyawan: loadKaryawanData().length
+    };
+    
     const modal = document.createElement('div');
     modal.innerHTML = `
         <div style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); z-index: 10000; display: flex; align-items: center; justify-content: center;">
@@ -121,21 +162,36 @@ function showUpdateConflictDialog(cloudData, cloudTotal, localTotal) {
                 
                 <div style="background: #fff3cd; border: 1px solid #ffeaa7; color: #856404; padding: 15px; border-radius: 8px; margin-bottom: 20px; font-size: 14px;">
                     <strong>Ada perubahan dari device lain!</strong><br><br>
-                    ☁️ <strong>Cloud:</strong> ${cloudTotal} records (lebih baru)<br>
-                    💻 <strong>Local:</strong> ${localTotal} records (ada perubahan belum save)
+                    
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 10px;">
+                        <div>
+                            <strong>☁️ CLOUD (lebih baru):</strong><br>
+                            📍 Pabrik: ${cloudBreakdown.pabrik}<br>
+                            💰 Ongkos: ${cloudBreakdown.ongkos}<br>
+                            👥 Karyawan: ${cloudBreakdown.karyawan}<br>
+                            <strong>Total: ${cloudTotal} records</strong>
+                        </div>
+                        <div>
+                            <strong>💻 LOCAL (ada changes):</strong><br>
+                            📍 Pabrik: ${localBreakdown.pabrik}<br>
+                            💰 Ongkos: ${localBreakdown.ongkos}<br>
+                            👥 Karyawan: ${localBreakdown.karyawan}<br>
+                            <strong>Total: ${localTotal} records</strong>
+                        </div>
+                    </div>
                 </div>
                 
                 <p style="margin-bottom: 20px; color: #666; text-align: center;"><strong>Pilih tindakan:</strong></p>
                 
                 <div style="display: flex; flex-direction: column; gap: 10px;">
                     <button onclick="resolveConflict('cloud')" style="padding: 12px 20px; background: #28a745; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: bold;">
-                        📥 Pakai Data Cloud (local akan hilang)
+                        📥 Pakai Data Cloud (${cloudTotal} records)
                     </button>
                     <button onclick="resolveConflict('local')" style="padding: 12px 20px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: bold;">
-                        💻 Pakai Data Local (cloud akan tertimpa saat save)
+                        💻 Pakai Data Local (${localTotal} records)
                     </button>
                     <button onclick="resolveConflict('manual')" style="padding: 12px 20px; background: #6c757d; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: bold;">
-                        🤔 Biarkan Manual (klik Open nanti untuk decide)
+                        🤔 Biarkan Manual (decide nanti)
                     </button>
                 </div>
             </div>
@@ -323,64 +379,78 @@ async function openFile() {
             showAlert('⚠️ Data local akan diganti dengan data cloud...', 'warning');
         }
     } else if (hasLocalData && localStatus === 'clean') {
-        // Ada data tapi sudah clean - tanya user mau refresh atau tidak
-        const userChoice = confirm(
-            `📂 REFRESH FILE\n\n` +
-            `Ada ${totalRecords} data tersimpan di local.\n\n` +
-            `• OK = Download versi terbaru dari cloud\n` +
-            `• Cancel = Tetap pakai data local\n\n` +
-            `Download data terbaru?`
-        );
-        
-        if (!userChoice) {
-            fileStatus.isOpen = true;
-            fileStatus.hasUnsavedChanges = false;
-            updateFileStatusUI();
-            refreshAllUI();
-            showAlert('📂 Menggunakan data local yang tersimpan', 'info');
-            return;
-        }
-    }
-    
-    // DOWNLOAD FROM CLOUD
-    updateSyncStatus('syncing', 'Opening...');
+    // SMART CHECK: Advanced comparison dengan cloud
+    updateSyncStatus('syncing', 'Comparing with cloud...');
     
     try {
-        console.log('📂 Opening file from GitHub...');
         const cloudData = await getGitHubFile('data.json');
         
         if (cloudData) {
-            loadCloudData(cloudData);
-            updateSyncStatus('', 'File opened');
-            showAlert('📂 File berhasil dibuka dari cloud!', 'success');
+            const localBreakdown = {
+                pabrik: loadPabrikData().length,
+                ongkos: loadOngkosData().length,
+                karyawan: loadKaryawanData().length
+            };
             
-            console.log('✅ File opened from cloud:', {
-                pabrik: (cloudData.pabrik || []).length,
-                ongkos: (cloudData.ongkos || []).length,
-                karyawan: (cloudData.karyawan || []).length
-            });
+            const cloudBreakdown = {
+                pabrik: (cloudData.pabrik?.length || 0),
+                ongkos: (cloudData.ongkos?.length || 0),
+                karyawan: (cloudData.karyawan?.length || 0)
+            };
             
-        } else {
-            // No file exists, create new
-            localStorage.setItem(STORAGE_KEYS.pabrik, JSON.stringify([]));
-            localStorage.setItem(STORAGE_KEYS.ongkos, JSON.stringify([]));
-            localStorage.setItem(STORAGE_KEYS.karyawan, JSON.stringify([]));
+            // ADVANCED COMPARISON: Check each category
+            const isDataIdentical = 
+                localBreakdown.pabrik === cloudBreakdown.pabrik &&
+                localBreakdown.ongkos === cloudBreakdown.ongkos &&
+                localBreakdown.karyawan === cloudBreakdown.karyawan;
             
-            fileStatus.isOpen = true;
-            fileStatus.hasUnsavedChanges = false;
-            setDataStatus('clean');
-            refreshAllUI();
+            if (isDataIdentical) {
+                // IDENTICAL DATA - just use local
+                fileStatus.isOpen = true;
+                fileStatus.hasUnsavedChanges = false;
+                updateFileStatusUI();
+                refreshAllUI();
+                updateSyncStatus('', 'Data current');
+                showAlert('📂 Data local sudah sama dengan cloud', 'info');
+                return;
+            }
             
-            updateSyncStatus('', 'New file');
-            showAlert('📄 File baru dibuat - siap untuk input data', 'info');
+            // DIFFERENT DATA - show detailed comparison
+            const localTotal = localBreakdown.pabrik + localBreakdown.ongkos + localBreakdown.karyawan;
+            const cloudTotal = cloudBreakdown.pabrik + cloudBreakdown.ongkos + cloudBreakdown.karyawan;
+            
+            const userChoice = confirm(
+                `📊 DATA BERBEDA TERDETEKSI!\n\n` +
+                `LOCAL:\n` +
+                `📍 Pabrik: ${localBreakdown.pabrik}\n` +
+                `💰 Ongkos: ${localBreakdown.ongkos}\n` +
+                `👥 Karyawan: ${localBreakdown.karyawan}\n` +
+                `Total: ${localTotal} records\n\n` +
+                `CLOUD:\n` +
+                `📍 Pabrik: ${cloudBreakdown.pabrik}\n` +
+                `💰 Ongkos: ${cloudBreakdown.ongkos}\n` +
+                `👥 Karyawan: ${cloudBreakdown.karyawan}\n` +
+                `Total: ${cloudTotal} records\n\n` +
+                `• OK = Download data cloud\n` +
+                `• Cancel = Tetap pakai data local\n\n` +
+                `Download data terbaru?`
+            );
+            
+            if (!userChoice) {
+                fileStatus.isOpen = true;
+                fileStatus.hasUnsavedChanges = false;
+                updateFileStatusUI();
+                refreshAllUI();
+                updateSyncStatus('', 'Using local');
+                showAlert('📂 Menggunakan data local yang tersimpan', 'info');
+                return;
+            }
         }
-        
     } catch (error) {
-        console.error('❌ Failed to open file:', error);
-        updateSyncStatus('error', 'Open failed');
-        showAlert('❌ Gagal membuka file dari cloud!', 'error');
+        console.log('Cloud check failed, proceeding with download...');
     }
 }
+
 
 async function saveFile() {
     if (!isGitHubConfigured()) {
@@ -681,4 +751,5 @@ function showAlert(message, type = 'success') {
 }
 
 console.log('✅ Smart Excel-like sync system with cloud check loaded');
+
 
