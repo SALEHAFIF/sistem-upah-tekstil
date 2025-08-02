@@ -1,5 +1,5 @@
-// sync.js - Excel-Like File Management with Smart Detection
-console.log('🔄 Loading Excel-like sync system with smart detection...');
+// sync.js - Excel-Like File Management with Smart Cloud Check
+console.log('🔄 Loading Excel-like sync system with smart cloud check...');
 
 // KONFIGURASI
 const GITHUB_CONFIG = {
@@ -27,37 +27,170 @@ let fileStatus = {
     lastSaved: null
 };
 
-// INITIALIZATION WITH SMART DETECTION
+// INITIALIZATION WITH SMART CLOUD CHECK
 async function initializeSystem() {
-    console.log('🚀 Initializing Excel-like System with Smart Detection...');
+    console.log('🚀 Initializing Excel-like System with Smart Cloud Check...');
     
     loadGitHubConfig();
     loadFileStatus();
     
-    // SMART DETECTION: Check existing local data
     const hasLocalData = hasExistingLocalData();
     
-    if (hasLocalData) {
-        console.log('📂 Found existing local data');
-        
-        // Auto-open file dengan data local
-        fileStatus.isOpen = true;
-        fileStatus.hasUnsavedChanges = checkDataStatus() === 'dirty';
-        
-        if (fileStatus.hasUnsavedChanges) {
-            showAlert('⚠️ Ada data belum disimpan dari session sebelumnya!', 'warning');
-        } else {
-            showAlert('📂 File dimuat dari local storage', 'info');
-        }
-        
-        // Load UI with existing data
-        refreshAllUI();
+    if (hasLocalData && isGitHubConfigured() && navigator.onLine) {
+        // ADA LOCAL DATA + ONLINE → CHECK CLOUD UPDATE
+        console.log('🌐 Checking cloud for updates...');
+        await smartCloudCheck();
+    } else if (hasLocalData) {
+        // ADA LOCAL DATA + OFFLINE → Load local saja
+        console.log('📂 Loading local data (offline)');
+        autoLoadLocalData();
     } else {
         console.log('📭 No local data found');
     }
     
     updateFileStatusUI();
-    console.log('✅ Excel-like system ready');
+    console.log('✅ Smart system ready');
+}
+
+// SMART CLOUD CHECK
+async function smartCloudCheck() {
+    try {
+        updateSyncStatus('syncing', 'Checking updates...');
+        
+        const cloudData = await getGitHubFile('data.json');
+        
+        if (!cloudData) {
+            // No cloud file → pakai local
+            console.log('☁️ No cloud file found, using local');
+            autoLoadLocalData();
+            updateSyncStatus('', 'Local data (no cloud)');
+            return;
+        }
+        
+        // Compare timestamps
+        const cloudTime = new Date(cloudData.lastUpdated || '1970-01-01');
+        const localSyncTime = localStorage.getItem('tekstil_last_sync_timestamp');
+        const localTime = new Date(localSyncTime || '1970-01-01');
+        
+        console.log('🕐 Timestamp comparison:', {
+            cloud: cloudData.lastUpdated,
+            local: localSyncTime,
+            cloudNewer: cloudTime > localTime
+        });
+        
+        if (cloudTime > localTime) {
+            // CLOUD LEBIH BARU → Ada update dari device lain!
+            const cloudTotal = (cloudData.pabrik?.length || 0) + 
+                              (cloudData.ongkos?.length || 0) + 
+                              (cloudData.karyawan?.length || 0);
+            
+            const localTotal = getTotalLocalRecords();
+            const hasLocalChanges = checkDataStatus() === 'dirty';
+            
+            console.log('🔄 Cloud is newer:', { cloudTotal, localTotal, hasLocalChanges });
+            
+            if (hasLocalChanges) {
+                // ADA LOCAL CHANGES + CLOUD UPDATE → CONFLICT!
+                console.log('⚠️ Conflict detected!');
+                showUpdateConflictDialog(cloudData, cloudTotal, localTotal);
+            } else {
+                // NO LOCAL CHANGES → Auto-update dari cloud
+                console.log('📥 Auto-updating from cloud');
+                loadCloudData(cloudData);
+                showAlert(`📥 Data terupdate otomatis (${cloudTotal} records dari cloud)`, 'info');
+            }
+        } else {
+            // LOCAL SAMA/LEBIH BARU → Pakai local
+            console.log('💻 Local data is current');
+            autoLoadLocalData();
+        }
+        
+    } catch (error) {
+        console.log('⚠️ Cloud check failed:', error.message);
+        autoLoadLocalData();
+        updateSyncStatus('error', 'Cloud check failed');
+    }
+}
+
+function showUpdateConflictDialog(cloudData, cloudTotal, localTotal) {
+    const modal = document.createElement('div');
+    modal.innerHTML = `
+        <div style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); z-index: 10000; display: flex; align-items: center; justify-content: center;">
+            <div style="background: white; padding: 30px; border-radius: 10px; max-width: 500px; width: 90%; box-shadow: 0 10px 30px rgba(0,0,0,0.3);">
+                <h2 style="margin-bottom: 20px; color: #e74c3c; text-align: center;">⚠️ CONFLICT DETECTED!</h2>
+                
+                <div style="background: #fff3cd; border: 1px solid #ffeaa7; color: #856404; padding: 15px; border-radius: 8px; margin-bottom: 20px; font-size: 14px;">
+                    <strong>Ada perubahan dari device lain!</strong><br><br>
+                    ☁️ <strong>Cloud:</strong> ${cloudTotal} records (lebih baru)<br>
+                    💻 <strong>Local:</strong> ${localTotal} records (ada perubahan belum save)
+                </div>
+                
+                <p style="margin-bottom: 20px; color: #666; text-align: center;"><strong>Pilih tindakan:</strong></p>
+                
+                <div style="display: flex; flex-direction: column; gap: 10px;">
+                    <button onclick="resolveConflict('cloud')" style="padding: 12px 20px; background: #28a745; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: bold;">
+                        📥 Pakai Data Cloud (local akan hilang)
+                    </button>
+                    <button onclick="resolveConflict('local')" style="padding: 12px 20px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: bold;">
+                        💻 Pakai Data Local (cloud akan tertimpa saat save)
+                    </button>
+                    <button onclick="resolveConflict('manual')" style="padding: 12px 20px; background: #6c757d; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: bold;">
+                        🤔 Biarkan Manual (klik Open nanti untuk decide)
+                    </button>
+                </div>
+            </div>
+        </div>
+    `;
+    modal.id = 'conflictModal';
+    document.body.appendChild(modal);
+    
+    // Store cloud data for conflict resolution
+    window.pendingCloudData = cloudData;
+}
+
+function resolveConflict(choice) {
+    const modal = document.getElementById('conflictModal');
+    const cloudData = window.pendingCloudData;
+    
+    if (choice === 'cloud') {
+        // Pakai cloud data
+        loadCloudData(cloudData);
+        showAlert('📥 Data cloud berhasil dimuat', 'success');
+    } else if (choice === 'local') {
+        // Pakai local data, set dirty untuk overwrite cloud nanti
+        autoLoadLocalData();
+        setDataStatus('dirty');
+        showAlert('💻 Menggunakan data local - jangan lupa save untuk overwrite cloud!', 'warning');
+    } else {
+        // Manual - biarkan user decide nanti
+        autoLoadLocalData();
+        showAlert('🤔 Menggunakan data local - klik Open untuk download cloud', 'info');
+    }
+    
+    if (modal) modal.remove();
+    window.pendingCloudData = null;
+}
+
+function autoLoadLocalData() {
+    fileStatus.isOpen = true;
+    fileStatus.hasUnsavedChanges = checkDataStatus() === 'dirty';
+    refreshAllUI();
+    
+    if (fileStatus.hasUnsavedChanges) {
+        showAlert('⚠️ Ada data belum disimpan dari session sebelumnya!', 'warning');
+    }
+}
+
+function loadCloudData(cloudData) {
+    localStorage.setItem(STORAGE_KEYS.pabrik, JSON.stringify(cloudData.pabrik || []));
+    localStorage.setItem(STORAGE_KEYS.ongkos, JSON.stringify(cloudData.ongkos || []));
+    localStorage.setItem(STORAGE_KEYS.karyawan, JSON.stringify(cloudData.karyawan || []));
+    localStorage.setItem('tekstil_last_sync_timestamp', cloudData.lastUpdated);
+    
+    fileStatus.isOpen = true;
+    fileStatus.hasUnsavedChanges = false;
+    setDataStatus('clean');
+    refreshAllUI();
 }
 
 // GITHUB CONFIG
@@ -154,7 +287,7 @@ function saveKaryawanData(data) {
     console.log(`💾 Saved ${data.length} karyawan records locally`);
 }
 
-// SMART EXCEL-LIKE FILE OPERATIONS
+// ENHANCED EXCEL-LIKE FILE OPERATIONS
 async function openFile() {
     if (!isGitHubConfigured()) {
         showGitHubSetup();
@@ -217,19 +350,7 @@ async function openFile() {
         const cloudData = await getGitHubFile('data.json');
         
         if (cloudData) {
-            // Load data to localStorage
-            localStorage.setItem(STORAGE_KEYS.pabrik, JSON.stringify(cloudData.pabrik || []));
-            localStorage.setItem(STORAGE_KEYS.ongkos, JSON.stringify(cloudData.ongkos || []));
-            localStorage.setItem(STORAGE_KEYS.karyawan, JSON.stringify(cloudData.karyawan || []));
-            
-            fileStatus.isOpen = true;
-            fileStatus.hasUnsavedChanges = false;
-            fileStatus.lastOpened = new Date().toISOString();
-            setDataStatus('clean');
-            
-            // Refresh UI
-            refreshAllUI();
-            
+            loadCloudData(cloudData);
             updateSyncStatus('', 'File opened');
             showAlert('📂 File berhasil dibuka dari cloud!', 'success');
             
@@ -294,6 +415,7 @@ async function saveFile() {
         if (success) {
             fileStatus.hasUnsavedChanges = false;
             fileStatus.lastSaved = new Date().toISOString();
+            localStorage.setItem('tekstil_last_sync_timestamp', allData.lastUpdated);
             setDataStatus('clean');
             
             updateSyncStatus('', 'Saved');
@@ -308,36 +430,7 @@ async function saveFile() {
     }
 }
 
-// NEW FILE FUNCTION
-function newFile() {
-    const hasLocalData = hasExistingLocalData();
-    const localStatus = checkDataStatus();
-    
-    if (hasLocalData && localStatus === 'dirty') {
-        const confirmed = confirm(
-            `⚠️ PERINGATAN!\n\n` +
-            `Ada ${getTotalLocalRecords()} data belum disimpan.\n\n` +
-            `Yakin ingin membuat file baru? Data akan hilang!`
-        );
-        
-        if (!confirmed) return;
-    }
-    
-    // Clear all data
-    localStorage.setItem(STORAGE_KEYS.pabrik, JSON.stringify([]));
-    localStorage.setItem(STORAGE_KEYS.ongkos, JSON.stringify([]));
-    localStorage.setItem(STORAGE_KEYS.karyawan, JSON.stringify([]));
-    
-    fileStatus.isOpen = true;
-    fileStatus.hasUnsavedChanges = false;
-    setDataStatus('clean');
-    
-    refreshAllUI();
-    updateSyncStatus('', 'New file');
-    showAlert('📄 File baru dibuat - mulai fresh!', 'success');
-}
-
-// GITHUB API FUNCTIONS (unchanged)
+// GITHUB API FUNCTIONS
 async function getGitHubFile(filename) {
     const url = `https://api.github.com/repos/${GITHUB_CONFIG.username}/${GITHUB_CONFIG.repo}/contents/${filename}`;
     
@@ -447,7 +540,7 @@ function refreshAllUI() {
     }, 100);
 }
 
-// SETUP DIALOG (unchanged but updated text)
+// SETUP DIALOG
 function showGitHubSetup() {
     const modal = document.createElement('div');
     modal.innerHTML = `
@@ -456,11 +549,11 @@ function showGitHubSetup() {
                 <h2 style="margin-bottom: 20px; color: #2c3e50;">🔧 Setup File Sync</h2>
                 
                 <div style="background: #e3f2fd; border: 1px solid #bbdefb; color: #1565c0; padding: 15px; border-radius: 8px; margin-bottom: 20px; font-size: 14px;">
-                    <strong>📁 SMART FILE MANAGEMENT:</strong><br>
-                    • Auto-detect local data saat startup<br>
-                    • Warning sebelum overwrite data<br>  
+                    <strong>🎯 SMART SYNC FEATURES:</strong><br>
+                    • Auto-detect cloud updates saat startup<br>
+                    • Conflict resolution dialog<br>  
                     • Data aman dari browser crash<br>
-                    • Excel-like Open/Save workflow
+                    • Multi-device coordination
                 </div>
                 
                 <p style="margin-bottom: 20px; color: #666;">Masukkan informasi GitHub Anda:</p>
@@ -498,7 +591,7 @@ function saveGitHubSetup() {
     
     saveGitHubConfig(username, token);
     closeGitHubSetup();
-    showAlert('✅ Setup berhasil! Klik "Open" untuk memulai.', 'success');
+    showAlert('✅ Setup berhasil! System akan check cloud updates otomatis.', 'success');
     updateFileStatusUI();
 }
 
@@ -522,4 +615,4 @@ function showAlert(message, type = 'success') {
     }
 }
 
-console.log('✅ Smart Excel-like sync system loaded');
+console.log('✅ Smart Excel-like sync system with cloud check loaded');
