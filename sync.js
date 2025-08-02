@@ -53,7 +53,7 @@ async function initializeSystem() {
 }
 
 // SMART CLOUD CHECK
-// SMART CLOUD CHECK
+// REPLACE ENTIRE smartCloudCheck() function
 async function smartCloudCheck() {
     try {
         updateSyncStatus('syncing', 'Checking updates...');
@@ -67,6 +67,9 @@ async function smartCloudCheck() {
             updateSyncStatus('', 'Local data (no cloud)');
             return;
         }
+        
+        // Store cloud data for content comparison
+        window.tempCloudDataForComparison = cloudData;
         
         // Compare timestamps
         const cloudTime = new Date(cloudData.lastUpdated || '1970-01-01');
@@ -103,15 +106,12 @@ async function smartCloudCheck() {
                 hasLocalChanges 
             });
             
-            // Check if data is actually different (not just timestamp)
-            const isDataIdentical = 
-                localBreakdown.pabrik === cloudBreakdown.pabrik &&
-                localBreakdown.ongkos === cloudBreakdown.ongkos &&
-                localBreakdown.karyawan === cloudBreakdown.karyawan;
+            // DEEP CONTENT COMPARISON (not just count!)
+            const isDataIdentical = isContentIdentical();
             
             if (isDataIdentical && !hasLocalChanges) {
-                // Same data, just update timestamp
-                console.log('📊 Data identical, updating timestamp only');
+                // Same content, just update timestamp
+                console.log('📊 Content identical, updating timestamp only');
                 localStorage.setItem('tekstil_last_sync_timestamp', cloudData.lastUpdated);
                 autoLoadLocalData();
                 return;
@@ -133,10 +133,14 @@ async function smartCloudCheck() {
             autoLoadLocalData();
         }
         
+        // Clean up temp data
+        window.tempCloudDataForComparison = null;
+        
     } catch (error) {
         console.log('⚠️ Cloud check failed:', error.message);
         autoLoadLocalData();
         updateSyncStatus('error', 'Cloud check failed');
+        window.tempCloudDataForComparison = null;
     }
 }
 
@@ -343,6 +347,47 @@ function saveKaryawanData(data) {
     console.log(`💾 Saved ${data.length} karyawan records locally`);
 }
 
+
+// ADD THIS HELPER FUNCTION (tambah setelah function getTotalLocalRecords)
+function isContentIdentical() {
+    try {
+        const localPabrik = loadPabrikData();
+        const localOngkos = loadOngkosData();
+        const localKaryawan = loadKaryawanData();
+        
+        const cloudData = window.tempCloudDataForComparison;
+        if (!cloudData) return false;
+        
+        const cloudPabrik = cloudData.pabrik || [];
+        const cloudOngkos = cloudData.ongkos || [];
+        const cloudKaryawan = cloudData.karyawan || [];
+        
+        // DEEP COMPARISON: Compare actual content, not just count
+        const pabrikIdentical = JSON.stringify(localPabrik.sort((a,b) => a.id - b.id)) === 
+                                JSON.stringify(cloudPabrik.sort((a,b) => a.id - b.id));
+        
+        const ongkosIdentical = JSON.stringify(localOngkos.sort((a,b) => a.id - b.id)) === 
+                               JSON.stringify(cloudOngkos.sort((a,b) => a.id - b.id));
+        
+        const karyawanIdentical = JSON.stringify(localKaryawan.sort((a,b) => a.id - b.id)) === 
+                                 JSON.stringify(cloudKaryawan.sort((a,b) => a.id - b.id));
+        
+        console.log('🔍 Deep content comparison:', {
+            pabrikIdentical,
+            ongkosIdentical, 
+            karyawanIdentical,
+            localPabrikIds: localPabrik.map(p => p.id).sort(),
+            cloudPabrikIds: cloudPabrik.map(p => p.id).sort()
+        });
+        
+        return pabrikIdentical && ongkosIdentical && karyawanIdentical;
+        
+    } catch (error) {
+        console.error('❌ Content comparison failed:', error);
+        return false;
+    }
+}
+
 // ENHANCED EXCEL-LIKE FILE OPERATIONS
 async function openFile() {
     if (!isGitHubConfigured()) {
@@ -378,14 +423,18 @@ async function openFile() {
             // User pilih replace dengan cloud data
             showAlert('⚠️ Data local akan diganti dengan data cloud...', 'warning');
         }
+    // REPLACE bagian advanced comparison di openFile()
     } else if (hasLocalData && localStatus === 'clean') {
-        // SMART CHECK: Advanced comparison dengan cloud
+        // SMART CHECK: Deep content comparison dengan cloud
         updateSyncStatus('syncing', 'Comparing with cloud...');
         
         try {
             const cloudData = await getGitHubFile('data.json');
             
             if (cloudData) {
+                // Store for content comparison
+                window.tempCloudDataForComparison = cloudData;
+                
                 const localBreakdown = {
                     pabrik: loadPabrikData().length,
                     ongkos: loadOngkosData().length,
@@ -398,36 +447,38 @@ async function openFile() {
                     karyawan: (cloudData.karyawan?.length || 0)
                 };
                 
-                // ADVANCED COMPARISON: Check each category
-                const isDataIdentical = 
-                    localBreakdown.pabrik === cloudBreakdown.pabrik &&
-                    localBreakdown.ongkos === cloudBreakdown.ongkos &&
-                    localBreakdown.karyawan === cloudBreakdown.karyawan;
+                // DEEP CONTENT COMPARISON
+                const isDataIdentical = isContentIdentical();
                 
                 if (isDataIdentical) {
-                    // IDENTICAL DATA - just use local
+                    // IDENTICAL CONTENT - just use local
                     fileStatus.isOpen = true;
                     fileStatus.hasUnsavedChanges = false;
                     updateFileStatusUI();
                     refreshAllUI();
                     updateSyncStatus('', 'Data current');
                     showAlert('📂 Data local sudah sama dengan cloud', 'info');
+                    window.tempCloudDataForComparison = null;
                     return;
                 }
                 
-                // DIFFERENT DATA - show detailed comparison
+                // DIFFERENT CONTENT - show detailed comparison
                 const localTotal = localBreakdown.pabrik + localBreakdown.ongkos + localBreakdown.karyawan;
                 const cloudTotal = cloudBreakdown.pabrik + cloudBreakdown.ongkos + cloudBreakdown.karyawan;
+                
+                // Get sample data names for better info
+                const localPabrikNames = loadPabrikData().slice(0,3).map(p => p.nama).join(', ');
+                const cloudPabrikNames = (cloudData.pabrik || []).slice(0,3).map(p => p.nama).join(', ');
                 
                 const userChoice = confirm(
                     `📊 DATA BERBEDA TERDETEKSI!\n\n` +
                     `LOCAL:\n` +
-                    `📍 Pabrik: ${localBreakdown.pabrik}\n` +
+                    `📍 Pabrik: ${localBreakdown.pabrik} (${localPabrikNames}${localBreakdown.pabrik > 3 ? '...' : ''})\n` +
                     `💰 Ongkos: ${localBreakdown.ongkos}\n` +
                     `👥 Karyawan: ${localBreakdown.karyawan}\n` +
                     `Total: ${localTotal} records\n\n` +
                     `CLOUD:\n` +
-                    `📍 Pabrik: ${cloudBreakdown.pabrik}\n` +
+                    `📍 Pabrik: ${cloudBreakdown.pabrik} (${cloudPabrikNames}${cloudBreakdown.pabrik > 3 ? '...' : ''})\n` +
                     `💰 Ongkos: ${cloudBreakdown.ongkos}\n` +
                     `👥 Karyawan: ${cloudBreakdown.karyawan}\n` +
                     `Total: ${cloudTotal} records\n\n` +
@@ -443,11 +494,16 @@ async function openFile() {
                     refreshAllUI();
                     updateSyncStatus('', 'Using local');
                     showAlert('📂 Menggunakan data local yang tersimpan', 'info');
+                    window.tempCloudDataForComparison = null;
                     return;
                 }
+                
+                // Clean up
+                window.tempCloudDataForComparison = null;
             }
         } catch (error) {
             console.log('Cloud check failed, proceeding with download...');
+            window.tempCloudDataForComparison = null;
         }
     }
     
@@ -795,6 +851,7 @@ function showAlert(message, type = 'success') {
 }
 
 console.log('✅ Smart Excel-like sync system with cloud check loaded');
+
 
 
 
