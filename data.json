@@ -11,16 +11,10 @@
       "nama": "Pabrik Lik Amah",
       "alamat": "Jalan 2",
       "created_at": "2025-08-02T10:19:05.881Z"
-    },
-    {
-      "id": 3,
-      "nama": "Pabrik Jamal",
-      "alamat": "Pacul",
-      "created_at": "2025-08-02T10:21:05.942Z"
     }
   ],
   "ongkos": [],
   "karyawan": [],
-  "lastUpdated": "2025-08-02T10:21:17.627Z",
+  "lastUpdated": "2025-08-02T10:21:45.246Z",
   "version": "1.0"
 }
