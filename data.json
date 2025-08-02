@@ -2,25 +2,19 @@
   "pabrik": [
     {
       "id": 1,
-      "nama": "Pabrik 1",
+      "nama": "Pabrik Wetan",
       "alamat": "Jalan 1",
-      "created_at": "2025-08-02T10:04:25.751Z"
+      "created_at": "2025-08-02T10:18:58.582Z"
     },
     {
       "id": 2,
-      "nama": "Pabrik 2",
+      "nama": "Pabrik Lik Amah",
       "alamat": "Jalan 2",
-      "created_at": "2025-08-02T10:04:30.613Z"
-    },
-    {
-      "id": 3,
-      "nama": "pabrik 4",
-      "alamat": "jalan 4",
-      "created_at": "2025-08-02T10:07:59.352Z"
+      "created_at": "2025-08-02T10:19:05.881Z"
     }
   ],
   "ongkos": [],
   "karyawan": [],
-  "lastUpdated": "2025-08-02T10:08:01.526Z",
+  "lastUpdated": "2025-08-02T10:19:09.737Z",
   "version": "1.0"
 }
