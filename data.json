@@ -2,61 +2,19 @@
   "pabrik": [
     {
       "id": 1,
-      "nama": "Pabrik A",
-      "alamat": "jalan a",
-      "created_at": "2025-08-02T06:58:56.184Z"
+      "nama": "Pabrik 1",
+      "alamat": "Jalan 1",
+      "created_at": "2025-08-02T10:04:25.751Z"
     },
     {
       "id": 2,
-      "nama": "Pabrik B",
-      "alamat": "jalan b",
-      "created_at": "2025-08-02T06:59:02.770Z"
-    },
-    {
-      "id": 3,
-      "nama": "Pabrik C",
-      "alamat": "jalan c",
-      "created_at": "2025-08-02T07:01:36.932Z"
-    },
-    {
-      "id": 4,
-      "nama": "Pabrik D",
-      "alamat": "jalan d",
-      "created_at": "2025-08-02T07:11:24.885Z"
-    },
-    {
-      "id": 5,
-      "nama": "Pabrik E",
-      "alamat": "jalan e",
-      "created_at": "2025-08-02T07:18:00.623Z"
-    },
-    {
-      "id": 6,
-      "nama": "Pabrik 1",
-      "alamat": "jalan 1",
-      "created_at": "2025-08-02T07:24:35.852Z"
-    },
-    {
-      "id": 7,
-      "nama": "pabrik 2",
-      "alamat": "jalan 2",
-      "created_at": "2025-08-02T07:24:40.308Z"
-    },
-    {
-      "id": 8,
-      "nama": "pabrik 3",
-      "alamat": "jalan 3",
-      "created_at": "2025-08-02T07:45:20.697Z"
-    },
-    {
-      "id": 9,
-      "nama": "pabrik 4",
-      "alamat": "jalan 4",
-      "created_at": "2025-08-02T07:45:59.845Z"
+      "nama": "Pabrik 2",
+      "alamat": "Jalan 2",
+      "created_at": "2025-08-02T10:04:30.613Z"
     }
   ],
   "ongkos": [],
   "karyawan": [],
-  "lastUpdated": "2025-08-02T07:46:02.760Z",
+  "lastUpdated": "2025-08-02T10:04:57.258Z",
   "version": "1.0"
 }
