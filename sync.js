@@ -358,7 +358,7 @@ async function openFile() {
     if (hasLocalData && localStatus === 'dirty') {
         // ADA DATA UNSAVED - WARNING USER!
         const userChoice = confirm(
-            `⚠️ PERINGATAN DATA LOCAL!\n\n` +
+            `⚠️ PERINGATAN DATA BELUM DISIMPAN!\n\n` +
             `Ada ${totalRecords} data belum disimpan di local storage.\n\n` +
             `Pilihan:\n` +
             `• OK = Buka file dari cloud (data local akan hilang)\n` +
@@ -379,78 +379,122 @@ async function openFile() {
             showAlert('⚠️ Data local akan diganti dengan data cloud...', 'warning');
         }
     } else if (hasLocalData && localStatus === 'clean') {
-    // SMART CHECK: Advanced comparison dengan cloud
-    updateSyncStatus('syncing', 'Comparing with cloud...');
+        // SMART CHECK: Advanced comparison dengan cloud
+        updateSyncStatus('syncing', 'Comparing with cloud...');
+        
+        try {
+            const cloudData = await getGitHubFile('data.json');
+            
+            if (cloudData) {
+                const localBreakdown = {
+                    pabrik: loadPabrikData().length,
+                    ongkos: loadOngkosData().length,
+                    karyawan: loadKaryawanData().length
+                };
+                
+                const cloudBreakdown = {
+                    pabrik: (cloudData.pabrik?.length || 0),
+                    ongkos: (cloudData.ongkos?.length || 0),
+                    karyawan: (cloudData.karyawan?.length || 0)
+                };
+                
+                // ADVANCED COMPARISON: Check each category
+                const isDataIdentical = 
+                    localBreakdown.pabrik === cloudBreakdown.pabrik &&
+                    localBreakdown.ongkos === cloudBreakdown.ongkos &&
+                    localBreakdown.karyawan === cloudBreakdown.karyawan;
+                
+                if (isDataIdentical) {
+                    // IDENTICAL DATA - just use local
+                    fileStatus.isOpen = true;
+                    fileStatus.hasUnsavedChanges = false;
+                    updateFileStatusUI();
+                    refreshAllUI();
+                    updateSyncStatus('', 'Data current');
+                    showAlert('📂 Data local sudah sama dengan cloud', 'info');
+                    return;
+                }
+                
+                // DIFFERENT DATA - show detailed comparison
+                const localTotal = localBreakdown.pabrik + localBreakdown.ongkos + localBreakdown.karyawan;
+                const cloudTotal = cloudBreakdown.pabrik + cloudBreakdown.ongkos + cloudBreakdown.karyawan;
+                
+                const userChoice = confirm(
+                    `📊 DATA BERBEDA TERDETEKSI!\n\n` +
+                    `LOCAL:\n` +
+                    `📍 Pabrik: ${localBreakdown.pabrik}\n` +
+                    `💰 Ongkos: ${localBreakdown.ongkos}\n` +
+                    `👥 Karyawan: ${localBreakdown.karyawan}\n` +
+                    `Total: ${localTotal} records\n\n` +
+                    `CLOUD:\n` +
+                    `📍 Pabrik: ${cloudBreakdown.pabrik}\n` +
+                    `💰 Ongkos: ${cloudBreakdown.ongkos}\n` +
+                    `👥 Karyawan: ${cloudBreakdown.karyawan}\n` +
+                    `Total: ${cloudTotal} records\n\n` +
+                    `• OK = Download data cloud\n` +
+                    `• Cancel = Tetap pakai data local\n\n` +
+                    `Download data terbaru?`
+                );
+                
+                if (!userChoice) {
+                    fileStatus.isOpen = true;
+                    fileStatus.hasUnsavedChanges = false;
+                    updateFileStatusUI();
+                    refreshAllUI();
+                    updateSyncStatus('', 'Using local');
+                    showAlert('📂 Menggunakan data local yang tersimpan', 'info');
+                    return;
+                }
+            }
+        } catch (error) {
+            console.log('Cloud check failed, proceeding with download...');
+        }
+    }
+    
+    // DOWNLOAD FROM CLOUD
+    updateSyncStatus('syncing', 'Opening...');
     
     try {
+        console.log('📂 Opening file from GitHub...');
         const cloudData = await getGitHubFile('data.json');
         
         if (cloudData) {
-            const localBreakdown = {
-                pabrik: loadPabrikData().length,
-                ongkos: loadOngkosData().length,
-                karyawan: loadKaryawanData().length
-            };
+            loadCloudData(cloudData);
+            updateSyncStatus('', 'File opened');
             
-            const cloudBreakdown = {
-                pabrik: (cloudData.pabrik?.length || 0),
-                ongkos: (cloudData.ongkos?.length || 0),
-                karyawan: (cloudData.karyawan?.length || 0)
-            };
+            const cloudTotal = (cloudData.pabrik?.length || 0) + 
+                             (cloudData.ongkos?.length || 0) + 
+                             (cloudData.karyawan?.length || 0);
             
-            // ADVANCED COMPARISON: Check each category
-            const isDataIdentical = 
-                localBreakdown.pabrik === cloudBreakdown.pabrik &&
-                localBreakdown.ongkos === cloudBreakdown.ongkos &&
-                localBreakdown.karyawan === cloudBreakdown.karyawan;
+            showAlert(`📂 File berhasil dibuka! ${cloudTotal} records dari cloud.`, 'success');
             
-            if (isDataIdentical) {
-                // IDENTICAL DATA - just use local
-                fileStatus.isOpen = true;
-                fileStatus.hasUnsavedChanges = false;
-                updateFileStatusUI();
-                refreshAllUI();
-                updateSyncStatus('', 'Data current');
-                showAlert('📂 Data local sudah sama dengan cloud', 'info');
-                return;
-            }
+            console.log('✅ File opened from cloud:', {
+                pabrik: (cloudData.pabrik || []).length,
+                ongkos: (cloudData.ongkos || []).length,
+                karyawan: (cloudData.karyawan || []).length
+            });
             
-            // DIFFERENT DATA - show detailed comparison
-            const localTotal = localBreakdown.pabrik + localBreakdown.ongkos + localBreakdown.karyawan;
-            const cloudTotal = cloudBreakdown.pabrik + cloudBreakdown.ongkos + cloudBreakdown.karyawan;
+        } else {
+            // No file exists, create new
+            localStorage.setItem(STORAGE_KEYS.pabrik, JSON.stringify([]));
+            localStorage.setItem(STORAGE_KEYS.ongkos, JSON.stringify([]));
+            localStorage.setItem(STORAGE_KEYS.karyawan, JSON.stringify([]));
             
-            const userChoice = confirm(
-                `📊 DATA BERBEDA TERDETEKSI!\n\n` +
-                `LOCAL:\n` +
-                `📍 Pabrik: ${localBreakdown.pabrik}\n` +
-                `💰 Ongkos: ${localBreakdown.ongkos}\n` +
-                `👥 Karyawan: ${localBreakdown.karyawan}\n` +
-                `Total: ${localTotal} records\n\n` +
-                `CLOUD:\n` +
-                `📍 Pabrik: ${cloudBreakdown.pabrik}\n` +
-                `💰 Ongkos: ${cloudBreakdown.ongkos}\n` +
-                `👥 Karyawan: ${cloudBreakdown.karyawan}\n` +
-                `Total: ${cloudTotal} records\n\n` +
-                `• OK = Download data cloud\n` +
-                `• Cancel = Tetap pakai data local\n\n` +
-                `Download data terbaru?`
-            );
+            fileStatus.isOpen = true;
+            fileStatus.hasUnsavedChanges = false;
+            setDataStatus('clean');
+            refreshAllUI();
             
-            if (!userChoice) {
-                fileStatus.isOpen = true;
-                fileStatus.hasUnsavedChanges = false;
-                updateFileStatusUI();
-                refreshAllUI();
-                updateSyncStatus('', 'Using local');
-                showAlert('📂 Menggunakan data local yang tersimpan', 'info');
-                return;
-            }
+            updateSyncStatus('', 'New file');
+            showAlert('📄 File baru dibuat - siap untuk input data', 'info');
         }
+        
     } catch (error) {
-        console.log('Cloud check failed, proceeding with download...');
+        console.error('❌ Failed to open file:', error);
+        updateSyncStatus('error', 'Open failed');
+        showAlert('❌ Gagal membuka file dari cloud!', 'error');
     }
 }
-
 
 async function saveFile() {
     if (!isGitHubConfigured()) {
@@ -751,5 +795,6 @@ function showAlert(message, type = 'success') {
 }
 
 console.log('✅ Smart Excel-like sync system with cloud check loaded');
+
 
 
