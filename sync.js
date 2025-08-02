@@ -3,9 +3,9 @@ console.log('🔄 Loading enhanced GitHub sync system...');
 
 // KONFIGURASI - Enhanced config
 const GITHUB_CONFIG = {
-    username: '', // Akan diset nanti
+    username: 'SALEHAFIF', // Akan diset nanti
     repo: 'sistem-upah-tekstil',
-    token: '', // Akan diset nanti
+    token: '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', // Akan diset nanti
     branch: 'main'
 };
 
@@ -946,3 +946,4 @@ function importAllData(fileInput) {
 }
 
 console.log('✅ Enhanced GitHub sync system loaded with safety features');
+
