@@ -1,7 +1,7 @@
-// sync.js - Enhanced GitHub Pages Integration with Safety Features
-console.log('🔄 Loading enhanced GitHub sync system...');
+// sync.js - Simplified Automatic GitHub Sync
+console.log('🔄 Loading simplified automatic sync system...');
 
-// KONFIGURASI - Enhanced config
+// KONFIGURASI
 const GITHUB_CONFIG = {
     username: '', // Akan diset nanti
     repo: 'sistem-upah-tekstil',
@@ -23,13 +23,12 @@ const SAFETY_CONFIG = {
     maxRetries: 5,
     retryDelay: 2000,
     backupBeforeSync: true,
-    autoSyncInterval: 30000, // 30 detik
-    conflictStrategy: 'merge' // 'merge', 'manual', 'latest-wins'
+    autoSyncInterval: 30000 // 30 detik
 };
 
 // INITIALIZATION
 async function initializeSystem() {
-    console.log('🚀 Initializing Enhanced Textile Wage System...');
+    console.log('🚀 Initializing Simplified Textile Wage System...');
     
     // Load GitHub config
     loadGitHubConfig();
@@ -42,11 +41,14 @@ async function initializeSystem() {
     
     // Auto sync if online and configured
     if (navigator.onLine && isGitHubConfigured()) {
-        console.log('📡 Auto-syncing data...');
+        console.log('📡 Auto-loading data...');
         await loadFromCloud();
+        
+        // Start permanent auto-sync
+        startPermanentAutoSync();
     }
     
-    console.log('✅ Enhanced system initialized successfully');
+    console.log('✅ Simplified system initialized successfully');
 }
 
 // GITHUB CONFIG MANAGEMENT
@@ -114,7 +116,7 @@ function saveKaryawanData(data) {
     queueSync('karyawan', data);
 }
 
-// INDEXEDDB FUNCTIONS (for offline capability)
+// INDEXEDDB FUNCTIONS
 let db;
 
 function initializeIndexedDB() {
@@ -155,8 +157,6 @@ function initializeIndexedDB() {
 }
 
 // SYNC QUEUE MANAGEMENT
-const syncQueue = [];
-
 function queueSync(dataType, data) {
     if (!navigator.onLine || !isGitHubConfigured()) {
         console.log(`📤 Queued ${dataType} for sync when online`);
@@ -168,6 +168,34 @@ function queueSync(dataType, data) {
     window.syncTimeout = setTimeout(async () => {
         await saveToCloud();
     }, 2000);
+}
+
+// PERMANENT AUTO-SYNC (always ON)
+function startPermanentAutoSync() {
+    // Auto-sync every 30 seconds - ALWAYS ON
+    setInterval(async () => {
+        if (navigator.onLine && isGitHubConfigured()) {
+            console.log('🤖 Auto-sync running...');
+            
+            // Smart auto-load first
+            await autoLoadLatestData();
+            
+            // Then sync any local changes
+            const hasLocalChanges = checkForUnsyncedChanges();
+            if (hasLocalChanges) {
+                await saveToCloud();
+            }
+        }
+    }, SAFETY_CONFIG.autoSyncInterval);
+    
+    console.log('🤖 Permanent auto-sync started (always ON)');
+}
+
+function checkForUnsyncedChanges() {
+    const lastSync = localStorage.getItem('tekstil_last_sync_timestamp');
+    const lastModified = localStorage.getItem('tekstil_last_modified');
+    
+    return !lastSync || !lastModified || new Date(lastModified) > new Date(lastSync);
 }
 
 // ENHANCED GITHUB API FUNCTIONS
@@ -383,7 +411,6 @@ async function updateGitHubFile(filename, data, retryCount = 0) {
         }
         
         console.log('✅ File updated successfully');
-        showAlert('✅ Data berhasil disinkronkan!', 'success');
         return true;
         
     } catch (error) {
@@ -514,6 +541,29 @@ async function smartMergeCloudData(cloudData) {
     }, 100);
 }
 
+// AUTO-LOAD FUNCTIONS
+async function autoLoadLatestData() {
+    try {
+        const cloudData = await getGitHubFile('data.json');
+        if (cloudData) {
+            const localTimestamp = localStorage.getItem('tekstil_last_sync_timestamp') || '1970-01-01';
+            const cloudTimestamp = cloudData.lastUpdated || '1970-01-01';
+            
+            // Jika cloud lebih baru, auto-download dan merge
+            if (new Date(cloudTimestamp) > new Date(localTimestamp)) {
+                console.log('📥 Cloud data is newer, auto-downloading...');
+                
+                await smartMergeCloudData(cloudData);
+                
+                return true;
+            }
+        }
+    } catch (error) {
+        console.log('Auto-load failed, continuing with local data');
+    }
+    return false;
+}
+
 // VALIDATION functions
 function validateDataIntegrity(data) {
     const validated = {
@@ -524,12 +574,6 @@ function validateDataIntegrity(data) {
         deviceId: data.deviceId || getDeviceId(),
         version: data.version || '1.0'
     };
-    
-    console.log('✅ Data validation completed:', {
-        pabrik: validated.pabrik.length,
-        ongkos: validated.ongkos.length,
-        karyawan: validated.karyawan.length
-    });
     
     return validated;
 }
@@ -603,141 +647,6 @@ function getDeviceId() {
     return deviceId;
 }
 
-// MANUAL CONTROLS for user
-function forceLoadLatestData() {
-    if (!isGitHubConfigured()) {
-        showAlert('❌ GitHub belum dikonfigurasi!', 'error');
-        return;
-    }
-    
-    updateSyncStatus('syncing', 'Loading...');
-    showAlert('🔄 Memuat data terbaru dari cloud...', 'info');
-    
-    loadFromCloud().then(success => {
-        if (success) {
-            // Refresh UI
-            setTimeout(() => {
-                if (typeof renderPabrikList === 'function') renderPabrikList();
-                if (typeof renderOngkosList === 'function') renderOngkosList();
-                if (typeof renderKaryawanList === 'function') renderKaryawanList();
-                location.reload(); // Force refresh semua
-            }, 500);
-        }
-    });
-}
-
-function forceSyncOfflineData() {
-    if (!isGitHubConfigured()) {
-        showAlert('❌ GitHub belum dikonfigurasi!', 'error');
-        return;
-    }
-    
-    const hasLocalData = loadPabrikData().length > 0 || 
-                        loadOngkosData().length > 0 || 
-                        loadKaryawanData().length > 0;
-    
-    if (!hasLocalData) {
-        showAlert('ℹ️ Tidak ada data offline untuk disinkronkan', 'info');
-        return;
-    }
-    
-    updateSyncStatus('syncing', 'Syncing...');
-    showAlert('🔄 Menyinkronkan data offline...', 'info');
-    
-    saveToCloud().then(success => {
-        if (success) {
-            showAlert('✅ Data offline berhasil disinkronkan!', 'success');
-        }
-    });
-}
-
-function toggleAutoSync() {
-    const current = localStorage.getItem('tekstil_auto_sync') !== 'false';
-    const newState = !current;
-    
-    localStorage.setItem('tekstil_auto_sync', newState.toString());
-    
-    if (newState) {
-        startAutoSync();
-        showAlert('✅ Auto-sync diaktifkan (30 detik)', 'success');
-    } else {
-        stopAutoSync();
-        showAlert('⏸️ Auto-sync dinonaktifkan', 'info');
-    }
-    
-    updateAutoSyncUI();
-}
-
-// AUTO SYNC dengan interval
-let autoSyncInterval = null;
-
-function startAutoSync() {
-    if (autoSyncInterval) return;
-    
-    autoSyncInterval = setInterval(async () => {
-        if (navigator.onLine && isGitHubConfigured()) {
-            console.log('🤖 Auto-sync running...');
-            await autoLoadLatestData();
-            
-            const hasLocalChanges = checkForLocalChanges();
-            if (hasLocalChanges) {
-                await saveToCloud();
-            }
-        }
-    }, SAFETY_CONFIG.autoSyncInterval);
-    
-    console.log('🤖 Auto-sync started (30s interval)');
-}
-
-function stopAutoSync() {
-    if (autoSyncInterval) {
-        clearInterval(autoSyncInterval);
-        autoSyncInterval = null;
-        console.log('🤖 Auto-sync stopped');
-    }
-}
-
-function checkForLocalChanges() {
-    const lastSync = localStorage.getItem('tekstil_last_sync_timestamp');
-    const lastModified = localStorage.getItem('tekstil_last_modified');
-    
-    return !lastSync || !lastModified || new Date(lastModified) > new Date(lastSync);
-}
-
-function updateAutoSyncUI() {
-    const autoSyncEnabled = localStorage.getItem('tekstil_auto_sync') !== 'false';
-    const button = document.getElementById('autoSyncToggle');
-    
-    if (button) {
-        button.textContent = autoSyncEnabled ? '⏸️ Auto-Sync ON' : '▶️ Auto-Sync OFF';
-        button.style.background = autoSyncEnabled ? '#28a745' : '#6c757d';
-    }
-}
-
-// AUTO-LOAD FUNCTIONS (Enhanced)
-async function autoLoadLatestData() {
-    try {
-        const cloudData = await getGitHubFile('data.json');
-        if (cloudData) {
-            const localTimestamp = localStorage.getItem('tekstil_last_sync_timestamp') || '1970-01-01';
-            const cloudTimestamp = cloudData.lastUpdated || '1970-01-01';
-            
-            // Jika cloud lebih baru, auto-download dan merge
-            if (new Date(cloudTimestamp) > new Date(localTimestamp)) {
-                console.log('📥 Cloud data is newer, auto-downloading...');
-                
-                await smartMergeCloudData(cloudData);
-                
-                showAlert('📥 Data terbaru berhasil dimuat!', 'info');
-                return true;
-            }
-        }
-    } catch (error) {
-        console.log('Auto-load failed, continuing with local data');
-    }
-    return false;
-}
-
 // UI FUNCTIONS
 function updateSyncStatus(status, message) {
     const indicator = document.getElementById('syncIndicator');
@@ -770,7 +679,7 @@ function updateSyncIndicator() {
         const diffMinutes = Math.floor((now - syncTime) / (1000 * 60));
         
         if (diffMinutes < 5) {
-            updateSyncStatus('', 'Connected');
+            updateSyncStatus('', 'Auto-Sync ON');
         } else {
             updateSyncStatus('syncing', `${diffMinutes}m ago`);
         }
@@ -785,108 +694,102 @@ function showGitHubSetup() {
     modal.innerHTML = `
         <div style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 10000; display: flex; align-items: center; justify-content: center;">
             <div style="background: white; padding: 30px; border-radius: 10px; max-width: 500px; width: 90%;">
-                <h2 style="margin-bottom: 20px; color: #2c3e50;">🔧 Setup Enhanced GitHub Sync</h2>
+                <h2 style="margin-bottom: 20px; color: #2c3e50;">🔧 Setup Automatic Sync</h2>
                 
-                <div style="background: #fff3cd; border: 1px solid #ffeaa7; color: #856404; padding: 15px; border-radius: 8px; margin-bottom: 20px; font-size: 14px;">
-                    <strong>✨ NEW FEATURES:</strong><br>
+                <div style="background: #d1ecf1; border: 1px solid #bee5eb; color: #0c5460; padding: 15px; border-radius: 8px; margin-bottom: 20px; font-size: 14px;">
+                    <strong>✨ AUTOMATIC SYNC:</strong><br>
+                    • Data sync otomatis setiap 30 detik<br>
+                    • Tidak perlu klik tombol manual<br>
                     • Smart conflict resolution<br>
-                    • Auto-backup & recovery<br>
-                    • Manual sync controls<br>
-                    • Enhanced data validation
+                    • Backup otomatis untuk keamanan data
                 </div>
                 
                 <p style="margin-bottom: 20px; color: #666;">Masukkan informasi GitHub Anda:</p>
+                
                 <div style="margin-bottom: 15px;">
-                   <label style="display: block; margin-bottom: 5px; font-weight: 500;">Username GitHub:</label>
-                   <input type="text" id="githubUsername" placeholder="contoh: johndoe" style="width: 100%; padding: 10px; border: 2px solid #e9ecef; border-radius: 5px;">
-               </div>
-               
-               <div style="margin-bottom: 20px;">
-                   <label style="display: block; margin-bottom: 5px; font-weight: 500;">Personal Access Token:</label>
-                   <input type="password" id="githubToken" placeholder="ghp_xxxxxxxxxxxx" style="width: 100%; padding: 10px; border: 2px solid #e9ecef; border-radius: 5px;">
-                   <small style="color: #666;">Token dengan akses 'repo' diperlukan</small>
-               </div>
-               
-               <div style="display: flex; gap: 10px; justify-content: end;">
-                   <button onclick="closeGitHubSetup(false)" style="padding: 10px 20px; border: 1px solid #ddd; background: white; border-radius: 5px; cursor: pointer;">Batal</button>
-                   <button onclick="saveGitHubSetup()" style="padding: 10px 20px; background: #667eea; color: white; border: none; border-radius: 5px; cursor: pointer;">Setup Enhanced Sync</button>
-               </div>
-           </div>
-       </div>
-   `;
-   modal.id = 'githubSetupModal';
-   document.body.appendChild(modal);
+                    <label style="display: block; margin-bottom: 5px; font-weight: 500;">Username GitHub:</label>
+                    <input type="text" id="githubUsername" placeholder="contoh: johndoe" style="width: 100%; padding: 10px; border: 2px solid #e9ecef; border-radius: 5px;">
+                </div>
+                
+                <div style="margin-bottom: 20px;">
+                    <label style="display: block; margin-bottom: 5px; font-weight: 500;">Personal Access Token:</label>
+                    <input type="password" id="githubToken" placeholder="ghp_xxxxxxxxxxxx" style="width: 100%; padding: 10px; border: 2px solid #e9ecef; border-radius: 5px;">
+                    <small style="color: #666;">Token dengan akses 'repo' diperlukan</small>
+                </div>
+                
+                <div style="display: flex; gap: 10px; justify-content: end;">
+                    <button onclick="closeGitHubSetup(false)" style="padding: 10px 20px; border: 1px solid #ddd; background: white; border-radius: 5px; cursor: pointer;">Batal</button>
+                    <button onclick="saveGitHubSetup()" style="padding: 10px 20px; background: #667eea; color: white; border: none; border-radius: 5px; cursor: pointer;">Setup Automatic Sync</button>
+                </div>
+            </div>
+        </div>
+    `;
+    modal.id = 'githubSetupModal';
+    document.body.appendChild(modal);
 }
 
 function saveGitHubSetup() {
-   const username = document.getElementById('githubUsername').value.trim();
-   const token = document.getElementById('githubToken').value.trim();
-   
-   if (!username || !token) {
-       alert('Username dan token harus diisi!');
-       return;
-   }
-   
-   saveGitHubConfig(username, token);
-   closeGitHubSetup(true);
-   
-   // JANGAN auto-sync! Biar initializeSystem() yang handle
-   showAlert('✅ Enhanced GitHub sync dikonfigurasi! Refresh halaman untuk mulai.', 'success');
-   
-   // Refresh halaman biar system reload dengan config baru
-   setTimeout(() => {
-       location.reload();
-   }, 1500);
+    const username = document.getElementById('githubUsername').value.trim();
+    const token = document.getElementById('githubToken').value.trim();
+    
+    if (!username || !token) {
+        alert('Username dan token harus diisi!');
+        return;
+    }
+    
+    saveGitHubConfig(username, token);
+    closeGitHubSetup(true);
+    
+    showAlert('✅ Automatic sync dikonfigurasi! Refresh halaman untuk mulai.', 'success');
+    
+    // Refresh halaman biar system reload dengan config baru
+    setTimeout(() => {
+        location.reload();
+    }, 1500);
 }
 
 function closeGitHubSetup(success) {
-   const modal = document.getElementById('githubSetupModal');
-   if (modal) {
-       modal.remove();
-   }
-   
-   if (success) {
-       updateSyncIndicator();
-   }
+    const modal = document.getElementById('githubSetupModal');
+    if (modal) {
+        modal.remove();
+    }
+    
+    if (success) {
+        updateSyncIndicator();
+    }
 }
 
-// EVENT LISTENERS - ENHANCED!
+// EVENT LISTENERS
 window.addEventListener('online', async () => {
-   console.log('🌐 Connection restored');
-   updateSyncIndicator();
-   
-   if (isGitHubConfigured()) {
-       // AUTO-LOAD data terbaru sebelum sync
-       console.log('📥 Auto-loading latest data...');
-       await autoLoadLatestData();
-       
-       // Baru sync data lokal
-       await saveToCloud();
-   }
+    console.log('🌐 Connection restored');
+    updateSyncIndicator();
+    
+    if (isGitHubConfigured()) {
+        // AUTO-LOAD data terbaru sebelum sync
+        console.log('📥 Auto-loading latest data...');
+        await autoLoadLatestData();
+        
+        // Baru sync data lokal
+        await saveToCloud();
+    }
 });
 
 window.addEventListener('offline', () => {
-   console.log('📴 Connection lost');
-   updateSyncStatus('error', 'Offline');
+    console.log('📴 Connection lost');
+    updateSyncStatus('error', 'Offline');
 });
 
 // Add setup button to sync status
 document.addEventListener('DOMContentLoaded', () => {
-   const syncStatus = document.querySelector('.sync-status');
-   if (syncStatus && !isGitHubConfigured()) {
-       syncStatus.style.cursor = 'pointer';
-       syncStatus.title = 'Klik untuk setup GitHub sync';
-       syncStatus.addEventListener('click', showGitHubSetup);
+    const syncStatus = document.querySelector('.sync-status');
+    if (syncStatus && !isGitHubConfigured()) {
+        syncStatus.style.cursor = 'pointer';
+        syncStatus.title = 'Klik untuk setup GitHub sync';
+        syncStatus.addEventListener('click', showGitHubSetup);
    }
    
-   // Initialize auto-sync
-   const autoSyncEnabled = localStorage.getItem('tekstil_auto_sync') !== 'false';
-   if (autoSyncEnabled && isGitHubConfigured()) {
-       setTimeout(() => {
-           startAutoSync();
-       }, 5000); // Start after 5 seconds
-   }
-   updateAutoSyncUI();
+   // Auto-sync is now always ON - no user control needed
+   console.log('✅ Simplified sync system ready');
 });
 
 // EXPORT/IMPORT FUNCTIONS
@@ -945,6 +848,4 @@ function importAllData(fileInput) {
    reader.readAsText(file);
 }
 
-console.log('✅ Enhanced GitHub sync system loaded with safety features');
-
-
+console.log('✅ Simplified automatic sync system loaded');
