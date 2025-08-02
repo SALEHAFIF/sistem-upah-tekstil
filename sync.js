@@ -393,6 +393,14 @@ async function saveFile() {
         return;
     }
     
+    // DISABLE SAVE BUTTON
+    const saveButton = document.querySelector('button[onclick="saveFile()"]');
+    if (saveButton) {
+        saveButton.disabled = true;
+        saveButton.textContent = '💾 Saving...';
+        saveButton.style.opacity = '0.6';
+    }
+    
     updateSyncStatus('syncing', 'Saving...');
     
     try {
@@ -404,10 +412,21 @@ async function saveFile() {
             version: '1.0'
         };
         
+        // LARGE FILE WARNING
+        const estimatedSize = JSON.stringify(allData).length;
+        const sizeKB = Math.round(estimatedSize / 1024);
+        const totalRecords = allData.pabrik.length + allData.ongkos.length + allData.karyawan.length;
+        
+        if (estimatedSize > 1000000) { // >1MB
+            showAlert(`📦 File besar (${sizeKB}KB) terdeteksi! Jangan tutup browser sampai selesai save.`, 'warning');
+        }
+        
         console.log('💾 Saving file to GitHub...', {
             pabrik: allData.pabrik.length,
             ongkos: allData.ongkos.length,
-            karyawan: allData.karyawan.length
+            karyawan: allData.karyawan.length,
+            totalRecords: totalRecords,
+            size: `${sizeKB}KB`
         });
         
         const success = await updateGitHubFile('data.json', allData);
@@ -419,14 +438,26 @@ async function saveFile() {
             setDataStatus('clean');
             
             updateSyncStatus('', 'Saved');
-            showAlert('💾 File berhasil disimpan ke cloud!', 'success');
+            showAlert(`💾 SAVE BERHASIL! ${totalRecords} records (${sizeKB}KB) tersimpan di cloud. Aman tutup browser.`, 'success');
             console.log('✅ File saved successfully');
         }
         
     } catch (error) {
         console.error('❌ Failed to save file:', error);
         updateSyncStatus('error', 'Save failed');
-        showAlert('❌ Gagal menyimpan file! Data masih aman di local.', 'error');
+        
+        if (error.name === 'AbortError') {
+            showAlert('❌ Save timeout! Koneksi lambat. Data aman di local, coba lagi.', 'error');
+        } else {
+            showAlert('❌ Gagal menyimpan file! Data masih aman di local. Coba lagi.', 'error');
+        }
+    } finally {
+        // RE-ENABLE SAVE BUTTON
+        if (saveButton) {
+            saveButton.disabled = false;
+            saveButton.textContent = '💾 Save';
+            saveButton.style.opacity = '1';
+        }
     }
 }
 
@@ -434,25 +465,39 @@ async function saveFile() {
 async function getGitHubFile(filename) {
     const url = `https://api.github.com/repos/${GITHUB_CONFIG.username}/${GITHUB_CONFIG.repo}/contents/${filename}`;
     
-    const response = await fetch(url, {
-        headers: {
-            'Authorization': `token ${GITHUB_CONFIG.token}`,
-            'Accept': 'application/vnd.github.v3+json'
+    // TIMEOUT PROTECTION
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+    
+    try {
+        const response = await fetch(url, {
+            headers: {
+                'Authorization': `token ${GITHUB_CONFIG.token}`,
+                'Accept': 'application/vnd.github.v3+json'
+            },
+            signal: controller.signal
+        });
+        
+        clearTimeout(timeoutId);
+        
+        if (response.status === 404) {
+            console.log('📄 File not found, will create new');
+            return null;
         }
-    });
-    
-    if (response.status === 404) {
-        console.log('📄 File not found, will create new');
-        return null;
+        
+        if (!response.ok) {
+            throw new Error(`GitHub API error: ${response.status}`);
+        }
+        
+        const fileData = await response.json();
+        const content = atob(fileData.content);
+        return JSON.parse(content);
+        
+    } catch (error) {
+        clearTimeout(timeoutId);
+        console.error('❌ Error getting GitHub file:', error);
+        throw error;
     }
-    
-    if (!response.ok) {
-        throw new Error(`GitHub API error: ${response.status}`);
-    }
-    
-    const fileData = await response.json();
-    const content = atob(fileData.content);
-    return JSON.parse(content);
 }
 
 async function updateGitHubFile(filename, data) {
@@ -461,19 +506,25 @@ async function updateGitHubFile(filename, data) {
     // Get current file SHA
     let sha = null;
     try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout for SHA
+        
         const currentFile = await fetch(url, {
             headers: {
                 'Authorization': `token ${GITHUB_CONFIG.token}`,
                 'Accept': 'application/vnd.github.v3+json'
-            }
+            },
+            signal: controller.signal
         });
+        
+        clearTimeout(timeoutId);
         
         if (currentFile.ok) {
             const fileData = await currentFile.json();
             sha = fileData.sha;
         }
     } catch (e) {
-        console.log('📝 Creating new file');
+        console.log('📝 Creating new file or SHA fetch failed');
     }
     
     const payload = {
@@ -484,22 +535,36 @@ async function updateGitHubFile(filename, data) {
     
     if (sha) payload.sha = sha;
     
-    const response = await fetch(url, {
-        method: 'PUT',
-        headers: {
-            'Authorization': `token ${GITHUB_CONFIG.token}`,
-            'Accept': 'application/vnd.github.v3+json',
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(payload)
-    });
+    // MAIN UPLOAD WITH TIMEOUT
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 60000); // 60 second timeout for upload
     
-    if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(`GitHub API error: ${response.status} - ${errorData.message}`);
+    try {
+        const response = await fetch(url, {
+            method: 'PUT',
+            headers: {
+                'Authorization': `token ${GITHUB_CONFIG.token}`,
+                'Accept': 'application/vnd.github.v3+json',
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(payload),
+            signal: controller.signal
+        });
+        
+        clearTimeout(timeoutId);
+        
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(`GitHub API error: ${response.status} - ${errorData.message}`);
+        }
+        
+        return true;
+        
+    } catch (error) {
+        clearTimeout(timeoutId);
+        console.error('❌ Error updating GitHub file:', error);
+        throw error;
     }
-    
-    return true;
 }
 
 // UI FUNCTIONS
@@ -616,3 +681,4 @@ function showAlert(message, type = 'success') {
 }
 
 console.log('✅ Smart Excel-like sync system with cloud check loaded');
+
