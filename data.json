@@ -11,10 +11,16 @@
       "nama": "Pabrik B",
       "alamat": "jalan b",
       "created_at": "2025-08-02T06:59:02.770Z"
+    },
+    {
+      "id": 3,
+      "nama": "Pabrik C",
+      "alamat": "jalan c",
+      "created_at": "2025-08-02T07:01:36.932Z"
     }
   ],
   "ongkos": [],
   "karyawan": [],
-  "lastUpdated": "2025-08-02T06:59:05.728Z",
+  "lastUpdated": "2025-08-02T07:02:07.619Z",
   "version": "1.0"
 }
