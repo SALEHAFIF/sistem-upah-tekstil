@@ -47,10 +47,16 @@
       "nama": "pabrik 3",
       "alamat": "jalan 3",
       "created_at": "2025-08-02T07:45:20.697Z"
+    },
+    {
+      "id": 9,
+      "nama": "pabrik 4",
+      "alamat": "jalan 4",
+      "created_at": "2025-08-02T07:45:59.845Z"
     }
   ],
   "ongkos": [],
   "karyawan": [],
-  "lastUpdated": "2025-08-02T07:45:22.505Z",
+  "lastUpdated": "2025-08-02T07:46:02.760Z",
   "version": "1.0"
 }
