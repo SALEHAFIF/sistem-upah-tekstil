@@ -2,38 +2,19 @@
   "pabrik": [
     {
       "id": 1,
-      "nama": "pabrik 1",
-      "alamat": "jalan 1",
-      "created_at": "2025-08-02T02:47:36.132Z"
+      "nama": "Pabrik A",
+      "alamat": "jalan a",
+      "created_at": "2025-08-02T06:58:56.184Z"
     },
     {
-      "id": 6,
-      "nama": "Pabrik 80",
-      "alamat": "jalan80",
-      "created_at": "2025-08-01T17:19:39.694Z"
-    },
-    {
-      "id": 7,
-      "nama": "pabrik 100",
-      "alamat": "jalan 100",
-      "created_at": "2025-08-01T17:24:10.223Z"
-    },
-    {
-      "id": 8,
-      "nama": "pabrik 200",
-      "alamat": "jalan 200",
-      "created_at": "2025-08-01T17:25:51.028Z"
-    },
-    {
-      "id": 9,
-      "nama": "pabrik 700",
-      "alamat": "jalan 700",
-      "created_at": "2025-08-01T17:28:00.714Z"
+      "id": 2,
+      "nama": "Pabrik B",
+      "alamat": "jalan b",
+      "created_at": "2025-08-02T06:59:02.770Z"
     }
   ],
   "ongkos": [],
   "karyawan": [],
-  "lastUpdated": "2025-08-02T06:38:30.489Z",
-  "deviceId": "device_r6bdqdead",
+  "lastUpdated": "2025-08-02T06:59:05.728Z",
   "version": "1.0"
 }
